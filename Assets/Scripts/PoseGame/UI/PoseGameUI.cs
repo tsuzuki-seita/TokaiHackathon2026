@@ -34,6 +34,9 @@ namespace PoseGame.UI
         RawImage m_PhotoThumbnail;
         GameObject m_PhotoThumbFrame;
         Text m_PhotoStatusText;
+        Button m_PlayAgainButton;
+        Button m_BackToTitleButton;
+        Text m_NextRoundHintText;
 
         // Flash
         Image m_FlashOverlay;
@@ -232,19 +235,28 @@ namespace PoseGame.UI
             commentRt.anchorMax = new Vector2(0.5f, 0.44f);
             commentRt.sizeDelta = new Vector2(1500, 60);
 
-            var againBtn = UIFactory.CreateButton("PlayAgainButton", m_ResultPanel, "もういちど", new Color(0.95f, 0.55f, 0.15f), Color.white, 40);
-            var againRt = (RectTransform)againBtn.transform;
+            m_PlayAgainButton = UIFactory.CreateButton("PlayAgainButton", m_ResultPanel, "もういちど", new Color(0.95f, 0.55f, 0.15f), Color.white, 40);
+            var againRt = (RectTransform)m_PlayAgainButton.transform;
             againRt.anchorMin = new Vector2(0.32f, 0.16f);
             againRt.anchorMax = new Vector2(0.32f, 0.16f);
             againRt.sizeDelta = new Vector2(380, 90);
-            againBtn.onClick.AddListener(() => OnPlayAgainRequested?.Invoke());
+            m_PlayAgainButton.onClick.AddListener(() => OnPlayAgainRequested?.Invoke());
 
-            var titleBtn = UIFactory.CreateButton("BackToTitleButton", m_ResultPanel, "タイトルへ", new Color(0.25f, 0.27f, 0.33f), Color.white, 40);
-            var titleBtnRt = (RectTransform)titleBtn.transform;
+            m_BackToTitleButton = UIFactory.CreateButton("BackToTitleButton", m_ResultPanel, "タイトルへ", new Color(0.25f, 0.27f, 0.33f), Color.white, 40);
+            var titleBtnRt = (RectTransform)m_BackToTitleButton.transform;
             titleBtnRt.anchorMin = new Vector2(0.68f, 0.16f);
             titleBtnRt.anchorMax = new Vector2(0.68f, 0.16f);
             titleBtnRt.sizeDelta = new Vector2(380, 90);
-            titleBtn.onClick.AddListener(() => OnBackToTitleRequested?.Invoke());
+            m_BackToTitleButton.onClick.AddListener(() => OnBackToTitleRequested?.Invoke());
+
+            // Shown in the same spot as the buttons during a mid-game round result, so it's
+            // clear the screen will auto-advance rather than being the end of the game.
+            m_NextRoundHintText = UIFactory.CreateText("NextRoundHint", m_ResultPanel, "つぎのラウンドへ…", 32,
+                new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter, FontStyle.Normal);
+            var nextHintRt = (RectTransform)m_NextRoundHintText.transform;
+            nextHintRt.anchorMin = new Vector2(0.5f, 0.16f);
+            nextHintRt.anchorMax = new Vector2(0.5f, 0.16f);
+            nextHintRt.sizeDelta = new Vector2(600, 60);
 
             var thumbFrame = UIFactory.CreatePanel("PhotoThumbFrame", m_ResultPanel, new Color(1, 1, 1, 0.9f));
             var thumbFrameRt = (RectTransform)thumbFrame.transform;
@@ -339,11 +351,20 @@ namespace PoseGame.UI
             m_CountdownRoot.gameObject.SetActive(false);
         }
 
-        public void ShowResults(PoseTheme theme, float teamScore01, Texture2D photo = null, string photoPath = null)
+        public void ShowResults(PoseTheme theme, float teamScore01, bool isFinalRound, Texture2D photo = null, string photoPath = null)
         {
             m_PlayPanel.gameObject.SetActive(false);
             m_ResultPanel.gameObject.SetActive(true);
-            m_ResultTitle.text = $"{theme.Emoji} {theme.DisplayName}";
+            m_ResultTitle.text = isFinalRound
+                ? $"🎉 全ラウンド終了！ {theme.Emoji} {theme.DisplayName}"
+                : $"{theme.Emoji} {theme.DisplayName}";
+
+            // Only the final round is actually the end of the game — mid-game rounds auto-advance
+            // on a timer, so hide the play-again/back-to-title buttons there instead of leaving
+            // them clickable and making it ambiguous whether the game is already over.
+            m_PlayAgainButton.gameObject.SetActive(isFinalRound);
+            m_BackToTitleButton.gameObject.SetActive(isFinalRound);
+            m_NextRoundHintText.gameObject.SetActive(!isFinalRound);
 
             var pct = Mathf.RoundToInt(Mathf.Clamp01(teamScore01) * 100f);
             m_TeamScoreText.text = $"みんなの一致度  {pct}%";

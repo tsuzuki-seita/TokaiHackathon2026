@@ -171,9 +171,10 @@ namespace PoseGame
                     Debug.LogWarning($"写真の保存に失敗しました: {e.Message}");
                 }
 
-                Ui.ShowResults(theme, teamScore, photo, photoPath);
+                var isFinalRound = round == TotalRounds;
+                Ui.ShowResults(theme, teamScore, isFinalRound, photo, photoPath);
 
-                if (round < TotalRounds)
+                if (!isFinalRound)
                 {
                     await UniTask.Delay(System.TimeSpan.FromSeconds(RoundResultSeconds), cancellationToken: ct);
                 }

@@ -99,11 +99,21 @@ namespace PoseGame
 
                 await UniTask.Delay(System.TimeSpan.FromSeconds(ThemeAnnounceSeconds), cancellationToken: ct);
 
-                // Let everyone see themselves in their camera zone and get into position before
-                // the round actually starts, rather than starting on a fixed timer.
-                await WaitForReadyAsync(ct);
+                // Keep the zone panels live (video + skeleton) through the ready prompt and
+                // countdown, so "カメラに映ってる？" is something players can actually check
+                // instead of staring at a frozen/empty preview.
+                using (var previewCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    PreviewZonesAsync(zoneCount, previewCts.Token).Forget();
 
-                await CountdownAsync(ct);
+                    // Let everyone see themselves in their camera zone and get into position
+                    // before the round actually starts, rather than starting on a fixed timer.
+                    await WaitForReadyAsync(ct);
+
+                    await CountdownAsync(ct);
+
+                    previewCts.Cancel();
+                }
 
                 var samples = new List<float>[zoneCount];
                 for (var i = 0; i < zoneCount; i++)
@@ -178,6 +188,24 @@ namespace PoseGame
         {
             var overallTeamScore = m_RoundTeamScores.Count > 0 ? m_RoundTeamScores.Average() : 0f;
             MiniGameScoreBoard.ReportScore(MiniGameId, overallTeamScore);
+        }
+
+        async UniTaskVoid PreviewZonesAsync(int zoneCount, CancellationToken ct)
+        {
+            try
+            {
+                while (true)
+                {
+                    for (var zone = 0; zone < zoneCount; zone++)
+                        Ui.UpdateZone(zone, Tracker.ZoneTextures[zone], Tracker.Poses[zone], 0f);
+
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                }
+            }
+            catch (System.OperationCanceledException)
+            {
+                // Expected once the round moves past the ready/countdown phase, or the run is cancelled.
+            }
         }
 
         async UniTask WaitForReadyAsync(CancellationToken ct)

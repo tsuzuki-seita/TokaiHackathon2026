@@ -15,8 +15,7 @@ namespace PoseGame
         public const int TotalRounds = 5;
         public const int MaxPlayers = 3;
         const float ThemeAnnounceSeconds = 0.6f;
-        const float PoseHoldSeconds = 6f;
-        const float ScoreSampleWindowSeconds = 2.5f; // average score is taken from this trailing window
+        const float PoseHoldSeconds = 6f; // the whole hold counts toward the score — players already got into position during the ready prompt + countdown
         const float RoundResultSeconds = 3.5f;
 
         public WebcamProvider Webcam;
@@ -119,6 +118,11 @@ namespace PoseGame
                 for (var i = 0; i < zoneCount; i++)
                     samples[i] = new List<float>();
 
+                // Players already got into position during the ready prompt + countdown, so the
+                // whole hold counts toward the score rather than hiding an extra grace period
+                // inside it — simpler to reason about and to show players.
+                Ui.ShowScoringHint();
+
                 var elapsed = 0f;
                 while (elapsed < PoseHoldSeconds)
                 {
@@ -130,19 +134,22 @@ namespace PoseGame
                     // whole group, not per zone.
                     var groupScores = GroupSyncScorer.Score(Tracker.Poses, theme);
 
+                    Ui.UpdateScoringHint(PoseHoldSeconds - elapsed);
+
                     for (var zone = 0; zone < zoneCount; zone++)
                     {
                         var pose = Tracker.Poses[zone];
                         var score = groupScores[zone] / 100f;
                         Ui.UpdateZone(zone, Tracker.ZoneTextures[zone], pose, score);
 
-                        if (elapsed >= PoseHoldSeconds - ScoreSampleWindowSeconds && pose.IsDetected)
+                        if (pose.IsDetected)
                             samples[zone].Add(score);
                     }
 
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
                     elapsed += Time.deltaTime;
                 }
+                Ui.HideScoringHint();
 
                 // The team's score for the round is everyone's agreement averaged together —
                 // one shared number for "how in sync was the whole group", not a ranking, so we

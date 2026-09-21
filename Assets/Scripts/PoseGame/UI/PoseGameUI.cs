@@ -20,6 +20,7 @@ namespace PoseGame.UI
         RectTransform m_ZoneRow;
         readonly System.Collections.Generic.List<ZonePanel> m_ZonePanels = new System.Collections.Generic.List<ZonePanel>();
         Text m_ThemeText;
+        string m_ThemeLabel;
         Text m_RoundText;
         Text m_CountdownText;
         RectTransform m_CountdownRoot;
@@ -210,6 +211,28 @@ namespace PoseGame.UI
             m_ReadyRoot.gameObject.SetActive(false);
         }
 
+        // Reuses the theme text's spot (already in a clearly visible, unobstructed part of the
+        // top bar) to show the scoring countdown, instead of a separate badge that risked
+        // overlapping the video zones below it.
+        public void ShowScoringHint()
+        {
+            m_ThemeText.color = new Color(1f, 0.85f, 0.3f);
+        }
+
+        // Called every frame while the scoring window is active, so the label reads like a
+        // countdown ("計測中！残り2秒" → "残り1秒" → …) instead of a fixed label.
+        public void UpdateScoringHint(float secondsRemaining)
+        {
+            var secs = Mathf.CeilToInt(Mathf.Max(0f, secondsRemaining));
+            m_ThemeText.text = $"{m_ThemeLabel}　計測中！残り{secs}秒";
+        }
+
+        public void HideScoringHint()
+        {
+            m_ThemeText.text = m_ThemeLabel;
+            m_ThemeText.color = Color.white;
+        }
+
         void BuildResultPanel()
         {
             m_ResultPanel = UIFactory.CreateRect("ResultPanel", m_Canvas.transform);
@@ -331,7 +354,9 @@ namespace PoseGame.UI
 
         public void AnnounceTheme(PoseTheme theme)
         {
-            m_ThemeText.text = $"{theme.Emoji}  お題：{theme.DisplayName}";
+            m_ThemeLabel = $"{theme.Emoji}  お題：{theme.DisplayName}";
+            m_ThemeText.text = m_ThemeLabel;
+            m_ThemeText.color = Color.white;
             m_ThemeText.transform.localScale = Vector3.one * 0.6f;
             m_ThemeText.transform.DOKill();
             m_ThemeText.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack);

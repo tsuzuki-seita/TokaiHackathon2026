@@ -18,14 +18,15 @@ public mmm_MoguraMoveController moguraMoveController;
 
     public List<int>[] memories = new List<int>[3]; // ↑の記憶用リストをまとめる配列
 
+    public int round; // ラウンドを示す関数
     public int number_number; // 各ラウンドの要素数を決める変数
+    public float interval; // 各ラウンドのもぐらが出てくる間隔を決める変数
+    int answerNumber = 0; // 1つずつ回答するラウンド1,2においていくつ目を回答しているかを示す
 
     private Vector3[] originalScales = new Vector3[26]; // リングの元の大きさを保存する配列
     private int currentRound = 1;
 
     float timingRange = 0.5f;    // 「パッ！」が出てから何秒以内ならOKか
-
-    int answerNumber = 0;  // 今何回目の入力か
 
     
 
@@ -93,11 +94,6 @@ public mmm_MoguraMoveController moguraMoveController;
                 currentRound++;
             }
         }
-
-        if (Input.GetKeyDown(KeyCode.Return))
-        {
-            StartCoroutine(AnswerPhase());
-        }
     }
 
 
@@ -135,7 +131,9 @@ public mmm_MoguraMoveController moguraMoveController;
 
     IEnumerator Round1()
     {
-        number_number = 4;
+        round = 1;
+        number_number = 1;
+        interval = 0.6f;
 
         CreateMemory(memory1);
         CreateMemory(memory2);
@@ -148,7 +146,9 @@ public mmm_MoguraMoveController moguraMoveController;
 
     IEnumerator Round2()
     {
-        number_number = 6;
+        round = 2;
+        number_number = 1;
+        interval = 0.4f;
 
         CreateMemory(memory1);
         CreateMemory(memory2);
@@ -161,7 +161,9 @@ public mmm_MoguraMoveController moguraMoveController;
 
     IEnumerator Round3()
     {
-        number_number = 8;
+        round = 3;
+        number_number = 2;
+        interval = 0.6f;
 
         CreateMemory(memory1);
         CreateMemory(memory2);
@@ -229,7 +231,7 @@ public mmm_MoguraMoveController moguraMoveController;
             }
 
             // 0.6秒待つ
-            yield return new WaitForSeconds(0.6f);
+            yield return new WaitForSeconds(interval);
 
             // 出したリングを元に戻す
             for (int j = 0; j < number_number && i + j < memory.Count; j++)
@@ -254,7 +256,69 @@ public mmm_MoguraMoveController moguraMoveController;
         renderer.material.DisableKeyword("_EMISSION");
     }
 
-    IEnumerator AnswerPhase()
+    // ラウンド1の正誤判定
+    void Judge1(int answer)
+    {
+        // 今回答する番号と、正解を比較
+        if (answer == memory1[answerNumber])
+        {
+            Debug.Log("正解！");
+
+            // 次の回答へ
+            answerNumber++;
+
+            // 3個全部正解した
+            if (answerNumber >= memory1.Count)
+            {
+                Debug.Log("ラウンド1クリア！");
+                
+                // 次のラウンドへ
+                answerNumber = 0;   
+                Round2();
+            }
+        }
+        else
+        {
+            Debug.Log("不正解！");
+
+            // 間違えたら次のラウンドへ
+            answerNumber = 0;
+            Round2();
+        }
+    }
+
+    // ラウンド2の正誤判定
+    void Judge2(int answer)
+    {
+        // 今回答する番号と、正解を比較
+        if (answer == memory1[answerNumber])
+        {
+            Debug.Log("正解！");
+
+            // 次の回答へ
+            answerNumber++;
+
+            // 3個全部正解した
+            if (answerNumber >= memory1.Count)
+            {
+                Debug.Log("ラウンド2クリア！");
+                
+                // 次のラウンドへ
+                answerNumber = 0;   
+                Round3();
+            }
+        }
+        else
+        {
+            Debug.Log("不正解！");
+
+            // 間違えたら次のラウンドへ
+            answerNumber = 0;
+            Round3();
+        }
+    }
+
+    IEnumerator AnswerPhase()  // ラウンド３用
     {
         Debug.Log("回答開始");
 

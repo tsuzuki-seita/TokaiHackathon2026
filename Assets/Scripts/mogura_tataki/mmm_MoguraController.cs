@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class mmm_MoguraController : MonoBehaviour
 {
+    // モグラを動かすスクリプト
+public mmm_MoguraMoveController moguraMoveController;
 
     public GameObject[] rings = new GameObject[26];  //配列を作成
     public List<int> memory1 = new List<int>();  // 記憶用リスト1個目
@@ -209,21 +211,31 @@ public class mmm_MoguraController : MonoBehaviour
         renderer.material.SetColor("_EmissionColor", Color.yellow * 2f);
     }
     
-    IEnumerator LightMemory(List<int> memory)
+   IEnumerator LightMemory(List<int> memory)
     {
-        // リストに入っているリングを全部光らせる
-        for (int i = 0; i < memory.Count; i++)
+        // number_number個ずつ処理する
+        for (int i = 0; i < memory.Count; i += number_number)
         {
-            LightRing(memory[i]);
-        }
+            // number_number個のリングとモグラを同時に出す
+            for (int j = 0; j < number_number && i + j < memory.Count; j++)
+            {
+                int number = memory[i + j];
 
-        // 0.6秒待つ
-        yield return new WaitForSeconds(0.6f);
+                // リングを光らせる
+                LightRing(number);
 
-        // リストに入っているリングを全部元に戻す
-        for (int i = 0; i < memory.Count; i++)
-        {
-            ResetRing(memory[i]);
+                // 同じ番号のモグラを出す
+                moguraMoveController.MoguraUp(number);
+            }
+
+            // 0.6秒待つ
+            yield return new WaitForSeconds(0.6f);
+
+            // 出したリングを元に戻す
+            for (int j = 0; j < number_number && i + j < memory.Count; j++)
+            {
+                ResetRing(memory[i + j]);
+            }
         }
     }
 

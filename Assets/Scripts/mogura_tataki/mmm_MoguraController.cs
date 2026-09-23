@@ -20,6 +20,11 @@ public class mmm_MoguraController : MonoBehaviour
 
     private Vector3[] originalScales = new Vector3[26]; // リングの元の大きさを保存する配列
     private int currentRound = 1;
+
+    float timingRange = 0.5f;    // 「パッ！」が出てから何秒以内ならOKか
+
+    int answerNumber = 0;  // 今何回目の入力か
+
     
 
 
@@ -40,22 +45,45 @@ public class mmm_MoguraController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+
+         // Z～Pのキーが押されたとき
+        int number = GetKeyNumber();
+
+        if (number != -1)
+        {
+            if (answerNumber == 1)
+            {
+                answer1.Add(number);
+                Debug.Log("answer1に追加：" + number);
+            }
+            else if (answerNumber == 2)
+            {
+                answer2.Add(number);
+                Debug.Log("answer2に追加：" + number);
+            }
+            else if (answerNumber == 3)
+            {
+                answer3.Add(number);
+                Debug.Log("answer3に追加：" + number);
+            }
+        }
+
+
         if(Input.GetKeyDown(KeyCode.Space))
         {
+
+            
             if (currentRound == 1)
             {
                 StartCoroutine(Round1());
-                StartCoroutine(LightMemory(memory1));
             }
             else if (currentRound == 2)
-            {
-                Round2();
-                StartCoroutine(LightMemory(memory2));
+            {    
+                StartCoroutine(Round2());
             }
             else if (currentRound == 3)
             {
-                Round3();
-                StartCoroutine(LightMemory(memory3));
+                StartCoroutine(Round3());
             }
 
             if (currentRound < 3)
@@ -64,11 +92,44 @@ public class mmm_MoguraController : MonoBehaviour
             }
         }
 
-        if(Input.GetKeyDown(KeyCode.A))
+        if (Input.GetKeyDown(KeyCode.Return))
         {
             StartCoroutine(AnswerPhase());
         }
     }
+
+
+    int GetKeyNumber()
+{
+    if (Input.GetKeyDown(KeyCode.Z)) return 0;
+    if (Input.GetKeyDown(KeyCode.X)) return 1;
+    if (Input.GetKeyDown(KeyCode.C)) return 2;
+    if (Input.GetKeyDown(KeyCode.V)) return 3;
+    if (Input.GetKeyDown(KeyCode.B)) return 4;
+    if (Input.GetKeyDown(KeyCode.N)) return 5;
+    if (Input.GetKeyDown(KeyCode.M)) return 6;
+    if (Input.GetKeyDown(KeyCode.A)) return 7;
+    if (Input.GetKeyDown(KeyCode.S)) return 8;
+    if (Input.GetKeyDown(KeyCode.D)) return 9;
+    if (Input.GetKeyDown(KeyCode.F)) return 10;
+    if (Input.GetKeyDown(KeyCode.G)) return 11;
+    if (Input.GetKeyDown(KeyCode.H)) return 12;
+    if (Input.GetKeyDown(KeyCode.J)) return 13;
+    if (Input.GetKeyDown(KeyCode.K)) return 14;
+    if (Input.GetKeyDown(KeyCode.L)) return 15;
+    if (Input.GetKeyDown(KeyCode.Q)) return 16;
+    if (Input.GetKeyDown(KeyCode.W)) return 17;
+    if (Input.GetKeyDown(KeyCode.E)) return 18;
+    if (Input.GetKeyDown(KeyCode.R)) return 19;
+    if (Input.GetKeyDown(KeyCode.T)) return 20;
+    if (Input.GetKeyDown(KeyCode.Y)) return 21;
+    if (Input.GetKeyDown(KeyCode.U)) return 22;
+    if (Input.GetKeyDown(KeyCode.I)) return 23;
+    if (Input.GetKeyDown(KeyCode.O)) return 24;
+    if (Input.GetKeyDown(KeyCode.P)) return 25;
+
+    return -1;
+}
 
     IEnumerator Round1()
     {
@@ -185,31 +246,40 @@ public class mmm_MoguraController : MonoBehaviour
     {
         Debug.Log("回答開始");
 
+        // 前回の回答を消す
+        answer1.Clear();
+        answer2.Clear();
+        answer3.Clear();
+
         // 1回目の回答
+        answerNumber = 1;
+
         Debug.Log("パッ！ 1回目");
 
-        // ここでプレイヤーの入力を受け付ける
-
+        // ここからanswer1への入力を受け付ける
 
         // 次のリズムまで待つ
         yield return new WaitForSeconds(1.0f);
 
 
         // 2回目の回答
+        answerNumber = 2;
+
         Debug.Log("パッ！ 2回目");
 
-        // ここでプレイヤーの入力を受け付ける
-
+        // ここからanswer2への入力を受け付ける
 
         // 次のリズムまで待つ
         yield return new WaitForSeconds(1.0f);
 
 
         // 3回目の回答
+        answerNumber = 3;
+
         Debug.Log("パッ！ 3回目");
 
-        // ここでプレイヤーの入力を受け付ける
-
+        // ここからanswer3への入力を受け付ける
+        yield return new WaitForSeconds(1.0f);
 
         // 3回分の回答を判定
         bool result1 = CheckAnswer(memory1, answer1);
@@ -225,7 +295,9 @@ public class mmm_MoguraController : MonoBehaviour
             Debug.Log("不正解！");
         }
 
-        // 回答終了
+        // 回答受付終了
+        answerNumber = 0;
+
         Debug.Log("回答終了");
     }
 

@@ -6,6 +6,11 @@ public class mmm_MoguraUIManager : MonoBehaviour
 {
     [SerializeField] mmm_MoguraController controller;
 
+    [Header("ラウンドテキスト")]
+    [SerializeField] GameObject round1Text;
+    [SerializeField] GameObject round2Text;
+    [SerializeField] GameObject round3Text;
+
     [Header("ラウンド開始バナー")]
     [SerializeField] RectTransform roundBanner;
     [SerializeField] TextMeshProUGUI roundBannerText;
@@ -37,6 +42,19 @@ public class mmm_MoguraUIManager : MonoBehaviour
     // ★ラウンド開始：バナーをポップさせてから引っ込める
     void HandleRoundStart(int roundNumber)
     {
+        if (roundNumber == 1)
+        {
+            round1Text.SetActive(true);
+        }
+        else if (roundNumber == 2)
+        {
+            round2Text.SetActive(true);
+        }
+        else if (roundNumber == 3)
+        {
+            round3Text.SetActive(true);
+        }
+
         roundBannerText.text = $"ラウンド{roundNumber}";
 
         roundBanner.gameObject.SetActive(true);

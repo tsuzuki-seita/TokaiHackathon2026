@@ -38,6 +38,7 @@ namespace HaeTataki
             {
                 _p1Time = Time.time;
                 handLeft.Swing();
+                ui.PunchKeyBadge(isP1: true);
                 CheckInputTiming();
             }
 
@@ -46,6 +47,7 @@ namespace HaeTataki
             {
                 _p2Time = Time.time;
                 handRight.Swing();
+                ui.PunchKeyBadge(isP1: false);
                 CheckInputTiming();
             }
 
@@ -57,6 +59,8 @@ namespace HaeTataki
                 _p2Time = Time.time;
                 handLeft.Swing();
                 handRight.Swing();
+                ui.PunchKeyBadge(isP1: true);  // ← 追加！
+                ui.PunchKeyBadge(isP1: false);
                 CheckInputTiming();
             }
             #endif

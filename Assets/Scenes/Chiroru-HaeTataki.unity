@@ -934,6 +934,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85846446fdaad4c78b7cfbe5b739ee37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mosquito: {fileID: 890423525}
+  handLeft: {fileID: 1525819800}
+  handRight: {fileID: 459200531}
+  ui: {fileID: 1631706479}
+  syncTolerance: 0.15
 --- !u!1 &1685559615
 GameObject:
   m_ObjectHideFlags: 0

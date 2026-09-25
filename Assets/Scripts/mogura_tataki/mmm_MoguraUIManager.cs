@@ -37,8 +37,6 @@ public class mmm_MoguraUIManager : MonoBehaviour
     // ★ラウンド開始：バナーをポップさせてから引っ込める
     void HandleRoundStart(int roundNumber)
     {
-        SoundManager.Instance?.PlaySE(SoundManager.SEData.SETYPE.SceneMove);
-
         roundBannerText.text = $"ラウンド{roundNumber}";
 
         roundBanner.gameObject.SetActive(true);
@@ -58,10 +56,6 @@ public class mmm_MoguraUIManager : MonoBehaviour
     void HandleRoundJudged(bool cleared)
     {
         RectTransform panel = cleared ? correctPanel : incorrectPanel;
-
-        SoundManager.Instance?.PlaySE(cleared
-            ? SoundManager.SEData.SETYPE.Winner
-            : SoundManager.SEData.SETYPE.Loser);
 
         panel.gameObject.SetActive(true);
         panel.localScale = Vector3.zero;

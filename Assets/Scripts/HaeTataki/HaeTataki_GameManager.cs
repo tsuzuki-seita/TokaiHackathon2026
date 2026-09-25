@@ -2,14 +2,15 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.Threading;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace HaeTataki
 {
     public enum GameState
     {
-        Title,       // タイトル画面表示中（スタート待機）
+        Title,       // タイトル画面表示中
         Playing,     // 3ラウンド進行中
-        FinalResult  // 最終リザルト表示中（タイトル復帰待機）
+        FinalResult  // 最終リザルト表示中
     }
 
     [System.Serializable]
@@ -59,7 +60,6 @@ namespace HaeTataki
 
         private void Start()
         {
-            // 起動時はタイトル画面から開始
             ToTitle();
         }
 
@@ -68,7 +68,6 @@ namespace HaeTataki
             switch (_currentState)
             {
                 case GameState.Title:
-                    // Spaceキー または AキーとLキーの同時押しでスタート
                     if (Input.GetKeyDown(KeyCode.Space) || (Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.L)))
                     {
                         StartFullGame();
@@ -80,7 +79,6 @@ namespace HaeTataki
                     break;
 
                 case GameState.FinalResult:
-                    // リザルト画面でSpaceまたはRキーでタイトル画面へ戻る
                     if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.R))
                     {
                         SafePlaySE(SoundManager.SEData.SETYPE.Button);
@@ -90,9 +88,6 @@ namespace HaeTataki
             }
         }
 
-        /// <summary>
-        /// タイトル画面への遷移
-        /// </summary>
         public void ToTitle()
         {
             _currentState = GameState.Title;
@@ -105,12 +100,17 @@ namespace HaeTataki
             mosquito.ResetState();
             ui.ResetUI();
             ui.ShowTitle();
+
+            // タイトルBGMは通常通りループ再生
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.Title, isLoop: true);
         }
 
         private void StartFullGame()
         {
             _currentState = GameState.Playing;
             SafePlaySE(SoundManager.SEData.SETYPE.Button);
+            // ゲーム中BGMもループ再生
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.InGame, isLoop: true);
 
             ui.HideTitle();
 
@@ -126,7 +126,6 @@ namespace HaeTataki
 
         private void HandlePlayingInput()
         {
-            // Rキー: 即座にタイトルへ戻す
             if (Input.GetKeyDown(KeyCode.R))
             {
                 ToTitle();
@@ -135,7 +134,6 @@ namespace HaeTataki
 
             if (_isResolved) return;
 
-            // Player 1 (Aキー)
             if (Input.GetKeyDown(KeyCode.A) && _p1Time < 0f)
             {
                 _p1Time = Time.time;
@@ -144,7 +142,6 @@ namespace HaeTataki
                 CheckInputTiming();
             }
 
-            // Player 2 (Lキー)
             if (Input.GetKeyDown(KeyCode.L) && _p2Time < 0f)
             {
                 _p2Time = Time.time;
@@ -153,7 +150,6 @@ namespace HaeTataki
                 CheckInputTiming();
             }
 
-            // Spaceキー（デバッグ同時押し）
             #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (Input.GetKeyDown(KeyCode.Space) && _p1Time < 0f && _p2Time < 0f)
             {
@@ -185,6 +181,8 @@ namespace HaeTataki
 
                 string roundTitle = (r == 2) ? "<color=#FF2222><size=55>FINAL ROUND!!</size></color>" : $"<size=55>ROUND {r + 1}</size>";
                 ui.ShowReady(roundTitle);
+                SafePlaySE(SoundManager.SEData.SETYPE.SceneMove);
+
                 await UniTask.Delay(1000, cancellationToken: ct);
                 ui.HideInstruction();
                 await UniTask.Delay(250, cancellationToken: ct);
@@ -205,8 +203,12 @@ namespace HaeTataki
                 }
             }
 
-            // 全3ラウンド終了 ➔ リザルト状態へ
+            // 全3ラウンド終了 ➔ リザルト画面
             _currentState = GameState.FinalResult;
+
+            // ★リザルト音（ファンファーレ/SE）は1回だけ再生（ループさせない）★
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.Mating, isLoop: false);
+
             ui.ShowFinalResult(Records);
         }
 
@@ -262,11 +264,16 @@ namespace HaeTataki
             bool isSuccess = mosquito.IsCatchable && isSynced;
             int score = CalculateScore(isSuccess, diffMs);
 
+            SafePlaySE(SoundManager.SEData.SETYPE.CrystalBreak);
+
             mosquito.HideInHands();
+            SafeSetBGMVolume(0f);
 
             handLeft.ShiverSuspense(suspenseDuration);
             handRight.ShiverSuspense(suspenseDuration);
             await UniTask.Delay((int)(suspenseDuration * 1000f), cancellationToken: ct);
+
+            SafeSetBGMVolume(1f);
 
             Records.Add(new RoundRecord
             {
@@ -332,20 +339,94 @@ namespace HaeTataki
             await UniTask.Delay(1500, cancellationToken: ct);
         }
 
-        private void SafePlaySE(SoundManager.SEData.SETYPE se)
+        #region SoundManager Safe Callbacks
+        private void SafePlayBGM(SoundManager.BGMData.BGMTYPE bgm, bool isLoop = true)
         {
-            if (SoundManager.Instance != null)
+            if (SoundManager.Instance == null) return;
+            if (!IsBgmValid(bgm)) return;
+
+            try
             {
-                try
+                SoundManager.Instance.PlayBGM(bgm);
+
+                // SoundManager.cs を変更せず、AudioSource の loop 設定のみ外部から制御
+                var field = typeof(SoundManager).GetField("_bgmAudioSource", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null)
                 {
-                    SoundManager.Instance.PlaySE(se);
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"[HaeTataki] SE '{se}' は未登録のため再生をスキップしました: {ex.Message}");
+                    var source = field.GetValue(SoundManager.Instance) as AudioSource;
+                    if (source != null)
+                    {
+                        source.loop = isLoop;
+                    }
                 }
             }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[HaeTataki] BGM '{bgm}' 再生時例外: {ex.Message}");
+            }
         }
+
+        private void SafePlaySE(SoundManager.SEData.SETYPE se)
+        {
+            if (SoundManager.Instance == null) return;
+            if (!IsSeValid(se)) return;
+
+            try
+            {
+                SoundManager.Instance.PlaySE(se);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[HaeTataki] SE '{se}' 再生時例外: {ex.Message}");
+            }
+        }
+
+        private void SafeSetBGMVolume(float volume)
+        {
+            if (SoundManager.Instance == null) return;
+            try
+            {
+                SoundManager.Instance.SetBGMVolume(volume);
+            }
+            catch { }
+        }
+
+        private bool IsBgmValid(SoundManager.BGMData.BGMTYPE bgm)
+        {
+            try
+            {
+                var field = typeof(SoundManager).GetField("_bgmSoundDatas", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null) return true;
+                var list = field.GetValue(SoundManager.Instance) as List<SoundManager.BGMData>;
+                if (list == null) return false;
+
+                var item = list.Find(d => d != null && d.bgm == bgm);
+                return item != null && item.audioClip != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool IsSeValid(SoundManager.SEData.SETYPE se)
+        {
+            try
+            {
+                var field = typeof(SoundManager).GetField("_seSoundDatas", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null) return true;
+                var list = field.GetValue(SoundManager.Instance) as List<SoundManager.SEData>;
+                if (list == null) return false;
+
+                var item = list.Find(d => d != null && d.se == se);
+                return item != null && item.audioClip != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        #endregion
 
         private void OnDestroy()
         {

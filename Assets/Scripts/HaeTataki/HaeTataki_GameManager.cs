@@ -1,9 +1,28 @@
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using System.Threading;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace HaeTataki
 {
+    public enum GameState
+    {
+        Title,
+        Playing,
+        FinalResult
+    }
+
+    [System.Serializable]
+    public struct RoundRecord
+    {
+        public int roundNumber;
+        public bool isSuccess;
+        public float diffMs;
+        public int score;
+        public string timingComment;
+    }
+
     public class HaeTataki_GameManager : MonoBehaviour
     {
         [Header("Actor References")]
@@ -11,30 +30,112 @@ namespace HaeTataki
         [SerializeField] private HaeTataki_HandActor handLeft;
         [SerializeField] private HaeTataki_HandActor handRight;
         [SerializeField] private HaeTataki_UI ui;
+        [SerializeField] private HaeTataki_CameraCapture cameraCapture;
 
         [Header("Settings")]
-        [SerializeField] private float syncTolerance = 0.15f; // 許容差 150ms
-        [SerializeField] [Range(0.3f, 3.0f)] private float suspenseDuration = 1.2f; // ← 追加！タメ秒
+        [SerializeField] [Range(0.3f, 3.0f)] private float suspenseDuration = 1.2f;
+        [Tooltip("Round 3(最終ラウンド)の合掌タメ秒数")]
+        [SerializeField] [Range(1.0f, 5.0f)] private float finalRoundSuspenseDuration = 2.4f;
 
+        private struct RoundDifficulty
+        {
+            public float flightDuration;
+            public float warningDuration;
+            public float catchableDuration;
+            public float syncTolerance;
+        }
+
+        private readonly RoundDifficulty[] _roundSettings = new RoundDifficulty[]
+        {
+            new RoundDifficulty { flightDuration = 2.2f, warningDuration = 0.60f, catchableDuration = 0.60f, syncTolerance = 0.150f },
+            new RoundDifficulty { flightDuration = 1.8f, warningDuration = 0.45f, catchableDuration = 0.45f, syncTolerance = 0.120f },
+            new RoundDifficulty { flightDuration = 3.2f, warningDuration = 1.10f, catchableDuration = 0.35f, syncTolerance = 0.090f }
+        };
+
+        private GameState _currentState = GameState.Title;
+        private int _currentRoundIndex = 0;
         private float _p1Time = -1f;
         private float _p2Time = -1f;
         private bool _isResolved = false;
         private CancellationTokenSource _cts;
+        private UniTaskCompletionSource _roundEndTcs;
 
-        private void Start() => StartNewGame();
+        public List<RoundRecord> Records { get; private set; } = new List<RoundRecord>();
+
+        private void Start()
+        {
+            ToTitle();
+        }
 
         private void Update()
         {
-            // Rキー: 即時リトライ
+            switch (_currentState)
+            {
+                case GameState.Title:
+                    if (Input.GetKeyDown(KeyCode.Space) || (Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.L)))
+                    {
+                        StartFullGame();
+                    }
+                    break;
+
+                case GameState.Playing:
+                    HandlePlayingInput();
+                    break;
+
+                case GameState.FinalResult:
+                    if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.R))
+                    {
+                        SafePlaySE(SoundManager.SEData.SETYPE.Button);
+                        ToTitle();
+                    }
+                    break;
+            }
+        }
+
+        public void ToTitle()
+        {
+            _currentState = GameState.Title;
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+
+            handLeft.ResetState();
+            handRight.ResetState();
+            mosquito.ResetState();
+            ui.ResetUI();
+            ui.ShowTitle();
+
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.Title, isLoop: true);
+        }
+
+        private void StartFullGame()
+        {
+            _currentState = GameState.Playing;
+            SafePlaySE(SoundManager.SEData.SETYPE.Button);
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.InGame, isLoop: true);
+
+            ui.HideTitle();
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+
+            _currentRoundIndex = 0;
+            Records.Clear();
+
+            RunThreeRoundsLoopAsync(_cts.Token).Forget();
+        }
+
+        private void HandlePlayingInput()
+        {
             if (Input.GetKeyDown(KeyCode.R))
             {
-                StartNewGame();
+                ToTitle();
                 return;
             }
 
             if (_isResolved) return;
 
-            // Player 1 (Aキー)
             if (Input.GetKeyDown(KeyCode.A) && _p1Time < 0f)
             {
                 _p1Time = Time.time;
@@ -43,7 +144,6 @@ namespace HaeTataki
                 CheckInputTiming();
             }
 
-            // Player 2 (Lキー)
             if (Input.GetKeyDown(KeyCode.L) && _p2Time < 0f)
             {
                 _p2Time = Time.time;
@@ -52,7 +152,6 @@ namespace HaeTataki
                 CheckInputTiming();
             }
 
-            // Spaceキー（デバッグ用同時押し）
             #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (Input.GetKeyDown(KeyCode.Space) && _p1Time < 0f && _p2Time < 0f)
             {
@@ -67,36 +166,89 @@ namespace HaeTataki
             #endif
         }
 
-        private void StartNewGame()
+        private async UniTask RunThreeRoundsLoopAsync(CancellationToken ct)
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = new CancellationTokenSource();
+            for (int r = 0; r < 3; r++)
+            {
+                _currentRoundIndex = r;
+                _p1Time = -1f;
+                _p2Time = -1f;
+                _isResolved = false;
+                _roundEndTcs = new UniTaskCompletionSource();
 
-            _p1Time = -1f;
-            _p2Time = -1f;
-            _isResolved = false;
+                handLeft.ResetState();
+                handRight.ResetState();
+                mosquito.ResetState();
+                ui.ResetUI();
 
-            handLeft.ResetState();
-            handRight.ResetState();
-            mosquito.ResetState();
-            ui.ResetUI();
+                RoundDifficulty diff = _roundSettings[r];
+                float totalRoundTime = diff.flightDuration + diff.warningDuration + diff.catchableDuration;
 
-            RunGameLoopAsync(_cts.Token).Forget();
+                // ★ ラウンド文字を特大サイズに拡大！ ★
+                string roundTitle = (r == 2) 
+                    ? "<color=#FF2222><size=85>FINAL ROUND!!</size></color>" 
+                    : $"<size=75>ROUND {r + 1}</size>";
+
+                ui.ShowReady(roundTitle, totalRoundTime);
+                SafePlaySE(SoundManager.SEData.SETYPE.SceneMove);
+
+                await UniTask.Delay(1000, cancellationToken: ct);
+                ui.HideInstruction();
+                await UniTask.Delay(250, cancellationToken: ct);
+
+                RunMosquitoFlightAsync(diff, ct).Forget();
+
+                await _roundEndTcs.Task;
+
+                if (r < 2)
+                {
+                    ui.AppendNextRoundGuide();
+                    await UniTask.WaitUntil(() => Input.GetKeyDown(KeyCode.Space), cancellationToken: ct);
+                    SafePlaySE(SoundManager.SEData.SETYPE.Button);
+
+                    ui.ResetUI();
+                    await UniTask.Delay(400, cancellationToken: ct);
+                }
+            }
+
+            _currentState = GameState.FinalResult;
+            SafePlayBGM(SoundManager.BGMData.BGMTYPE.Mating, isLoop: false);
+
+            ui.ShowFinalResult(
+                Records,
+                cameraCapture != null ? cameraCapture.FocusFaceTexture : null,
+                cameraCapture != null ? cameraCapture.ActionFaceTexture : null);
         }
 
-        private async UniTask RunGameLoopAsync(CancellationToken ct)
+        private async UniTaskVoid RunMosquitoFlightAsync(RoundDifficulty diff, CancellationToken ct)
         {
-            ui.ShowReady("挟め！");
-            await UniTask.Delay(800, cancellationToken: ct);
-            ui.HideInstruction();
-
-            await mosquito.StartFlightSequenceAsync(ct);
+            await mosquito.StartFlightSequenceAsync(
+                diff.flightDuration,
+                diff.warningDuration,
+                diff.catchableDuration,
+                ct,
+                onWarningCallback: () =>
+                {
+                    if (_currentRoundIndex == 2 && cameraCapture != null)
+                    {
+                        cameraCapture.CaptureFocusFace();
+                    }
+                });
 
             if (!_isResolved)
             {
                 _isResolved = true;
+                Records.Add(new RoundRecord
+                {
+                    roundNumber = _currentRoundIndex + 1,
+                    isSuccess = false,
+                    diffMs = 9999f,
+                    score = 0,
+                    timingComment = "2人とも反応できず…！"
+                });
+
                 await OnTimeOutAsync(ct);
+                _roundEndTcs?.TrySetResult();
             }
         }
 
@@ -108,82 +260,126 @@ namespace HaeTataki
                 float diff = Mathf.Abs(_p1Time - _p2Time);
                 float diffMs = diff * 1000f;
 
-                // ドキドキ判定シーケンスを開始！
-                ResolveWithSuspenseAsync(diff <= syncTolerance, diffMs, _cts.Token).Forget();
+                RoundDifficulty currentDiff = _roundSettings[_currentRoundIndex];
+                bool isSynced = (diff <= currentDiff.syncTolerance);
+
+                ProcessInputResolutionAsync(isSynced, diffMs, _cts.Token).Forget();
             }
         }
 
-                /// <summary>
-        /// ドキドキのタメ時間を作ってから結果を開示する
-        /// </summary>
+        private async UniTaskVoid ProcessInputResolutionAsync(bool isSynced, float diffMs, CancellationToken ct)
+        {
+            await ResolveWithSuspenseAsync(isSynced, diffMs, ct);
+            _roundEndTcs?.TrySetResult();
+        }
+
         private async UniTask ResolveWithSuspenseAsync(bool isSynced, float diffMs, CancellationToken ct)
         {
-            // 1. スウィングが中央に届くまで待機（約80ms）
+            if (_currentRoundIndex == 2 && cameraCapture != null)
+            {
+                cameraCapture.CaptureActionFace();
+            }
+
             await UniTask.Delay(80, cancellationToken: ct);
 
-            bool isSuccess = mosquito.IsCatchable && isSynced;
+            bool isCatchable = mosquito.IsCatchable;
+            bool isSuccess = isCatchable && isSynced;
+            int score = CalculateScore(isSuccess, diffMs);
 
-            // 2. 蚊を手の中に完全に隠し、羽音をピタッと消して静寂をつくる！
+            string comment = GenerateTimingComment(isSuccess, isCatchable, _p1Time, _p2Time);
+
+            SafePlaySE(SoundManager.SEData.SETYPE.CrystalBreak);
+
             mosquito.HideInHands();
+            SafeSetBGMVolume(0f);
 
-            // 3. 設定秒数だけ両手がプルプル震えてタメる！
-            handLeft.ShiverSuspense(suspenseDuration);
-            handRight.ShiverSuspense(suspenseDuration);
-            await UniTask.Delay((int)(suspenseDuration * 1000f), cancellationToken: ct);
+            float currentSuspense = (_currentRoundIndex == 2) ? finalRoundSuspenseDuration : suspenseDuration;
 
-            // 4. 結果開示！
+            handLeft.ShiverSuspense(currentSuspense);
+            handRight.ShiverSuspense(currentSuspense);
+            await UniTask.Delay((int)(currentSuspense * 1000f), cancellationToken: ct);
+
+            SafeSetBGMVolume(1f);
+
+            Records.Add(new RoundRecord
+            {
+                roundNumber = _currentRoundIndex + 1,
+                isSuccess = isSuccess,
+                diffMs = diffMs,
+                score = score,
+                timingComment = comment
+            });
+
             if (isSuccess)
             {
-                await OnPerfectAsync(ct);
+                await OnPerfectAsync(score, comment, ct);
             }
             else
             {
-                await OnTimingMissAsync(diffMs, ct);
+                await OnTimingMissAsync(comment, ct);
             }
         }
-        private async UniTask OnPerfectAsync(CancellationToken ct)
+
+        private string GenerateTimingComment(bool isSuccess, bool isCatchable, float p1Time, float p2Time)
         {
-            // 1. まず両手をパッと開いて離す（蚊がしっかり見えるように！）
+            if (p1Time < 0 || p2Time < 0) return "2人とも反応できず…！";
+
+            if (isSuccess)
+            {
+                return "バッチリ！";
+            }
+            else
+            {
+                float diff = Mathf.Abs(p1Time - p2Time);
+                float diffMs = diff * 1000f;
+                bool isP1Early = p1Time < p2Time;
+
+                if (!isCatchable)
+                {
+                    if (diffMs <= 30f) return "息ピッタリなのに…蚊がいない！";
+                    return "早すぎた！蚊がまだ来てない！";
+                }
+
+                if (diffMs <= 180f) return isP1Early ? "右が少し遅れた！" : "左が少し遅れた！";
+                if (diffMs <= 350f) return isP1Early ? "右がめっちゃ遅い！" : "左がめっちゃ遅い！";
+                return isP1Early ? "左のフライング！(右が大遅刻)" : "右のフライング！(左が大遅刻)";
+            }
+        }
+
+        private int CalculateScore(bool isSuccess, float diffMs)
+        {
+            if (!isSuccess) return 0;
+
+            int score = 100;
+            if (diffMs <= 30f) score += 30;
+            else if (diffMs <= 80f) score += 15;
+            return score;
+        }
+
+        private async UniTask OnPerfectAsync(int earnedScore, string comment, CancellationToken ct)
+        {
             handLeft.ReturnToInitial(0.25f);
             handRight.ReturnToInitial(0.25f);
-
-            // 2. 手の中から蚊が現れ、ヨロヨロと下に落ちていく！
             mosquito.Squash();
-            ui.ShowResult(true);
+            ui.ShowResult(true, comment);
 
-            if (SoundManager.Instance != null)
-            {
-                SoundManager.Instance.PlaySE(SoundManager.SEData.SETYPE.Winner);
-            }
-
+            SafePlaySE(SoundManager.SEData.SETYPE.Winner);
             await UniTask.Delay(1500, cancellationToken: ct);
         }
-                private async UniTask OnTimingMissAsync(float diffMs, CancellationToken ct)
-        {
-            mosquito.Escape(); // 蚊がドヤ顔で飛び去る！
 
-            // 1. パッと手を左右に開いて離す（中央の重なりを解消！）
+        private async UniTask OnTimingMissAsync(string comment, CancellationToken ct)
+        {
+            mosquito.Escape();
             handLeft.ReturnToInitial(0.18f);
             handRight.ReturnToInitial(0.18f);
 
-            // 2. 手が離れた直後に、遅かった方の手だけが痛がって真っ赤に痺れる！
             await UniTask.Delay(180, cancellationToken: ct);
-            if (_p1Time < _p2Time)
-            {
-                handRight.PlayHurt();
-            }
-            else
-            {
-                handLeft.PlayHurt();
-            }
+            if (_p1Time < _p2Time) handRight.PlayHurt();
+            else handLeft.PlayHurt();
 
-            ui.ShowResult(false, diffMs);
+            ui.ShowResult(false, comment);
 
-            if (SoundManager.Instance != null)
-            {
-                SoundManager.Instance.PlaySE(SoundManager.SEData.SETYPE.PlayerDamage);
-            }
-
+            SafePlaySE(SoundManager.SEData.SETYPE.PlayerDamage);
             await UniTask.Delay(1500, cancellationToken: ct);
         }
 
@@ -192,13 +388,75 @@ namespace HaeTataki
             await mosquito.CameraAttackAsync(ct);
             ui.ShowTimeOut();
 
-            if (SoundManager.Instance != null)
-            {
-                SoundManager.Instance.PlaySE(SoundManager.SEData.SETYPE.Loser);
-            }
-
+            SafePlaySE(SoundManager.SEData.SETYPE.Loser);
             await UniTask.Delay(1500, cancellationToken: ct);
         }
+
+        #region SoundManager Safe Callbacks
+        private void SafePlayBGM(SoundManager.BGMData.BGMTYPE bgm, bool isLoop = true)
+        {
+            if (SoundManager.Instance == null) return;
+            if (!IsBgmValid(bgm)) return;
+
+            try
+            {
+                SoundManager.Instance.PlayBGM(bgm);
+                var field = typeof(SoundManager).GetField("_bgmAudioSource", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null)
+                {
+                    var source = field.GetValue(SoundManager.Instance) as AudioSource;
+                    if (source != null) source.loop = isLoop;
+                }
+            }
+            catch { }
+        }
+
+        private void SafePlaySE(SoundManager.SEData.SETYPE se)
+        {
+            if (SoundManager.Instance == null) return;
+            if (!IsSeValid(se)) return;
+
+            try
+            {
+                SoundManager.Instance.PlaySE(se);
+            }
+            catch { }
+        }
+
+        private void SafeSetBGMVolume(float volume)
+        {
+            if (SoundManager.Instance == null) return;
+            try { SoundManager.Instance.SetBGMVolume(volume); } catch { }
+        }
+
+        private bool IsBgmValid(SoundManager.BGMData.BGMTYPE bgm)
+        {
+            try
+            {
+                var field = typeof(SoundManager).GetField("_bgmSoundDatas", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null) return true;
+                var list = field.GetValue(SoundManager.Instance) as List<SoundManager.BGMData>;
+                if (list == null) return false;
+                var item = list.Find(d => d != null && d.bgm == bgm);
+                return item != null && item.audioClip != null;
+            }
+            catch { return false; }
+        }
+
+        private bool IsSeValid(SoundManager.SEData.SETYPE se)
+        {
+            try
+            {
+                var field = typeof(SoundManager).GetField("_seSoundDatas", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null) return true;
+                var list = field.GetValue(SoundManager.Instance) as List<SoundManager.SEData>;
+                if (list == null) return false;
+                var item = list.Find(d => d != null && d.se == se);
+                return item != null && item.audioClip != null;
+            }
+            catch { return false; }
+        }
+        #endregion
 
         private void OnDestroy()
         {

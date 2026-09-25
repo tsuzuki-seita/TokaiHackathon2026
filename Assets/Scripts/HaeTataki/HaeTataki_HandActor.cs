@@ -11,8 +11,8 @@ namespace HaeTataki
 
         [Header("Sprites")]
         [SerializeField] private Sprite readySprite;  // 構え状態（パーの手）
-        [SerializeField] private Sprite chopSprite;   // 挟み込み状態（今回のアタッチ画像）
-        [SerializeField] private Sprite hurtSprite;   // 痛がり状態（hand_hurt_throbbing）
+        [SerializeField] private Sprite chopSprite;   // 挟み込み状態（合掌の手）
+        [SerializeField] private Sprite hurtSprite;   // 痛がり状態（痺れ手）
 
         private Vector3 _initialPosition;
         private SpriteRenderer _spriteRenderer;
@@ -33,28 +33,37 @@ namespace HaeTataki
         }
 
         /// <summary>
-        /// 中央へ向かってスウィングし、中央到達時にチョップ画像へ切り替える
+        /// 中央へ向かってスウィング（即座にチョップ画像に切り替えて移動）
         /// </summary>
         public void SwingToCenter()
         {
             DOTween.Kill(transform);
-            transform.DOMoveX(swingTargetX, 0.08f).SetEase(Ease.InQuad)
-                     .OnComplete(() =>
-                     {
-                         // 中央で合わさった瞬間にチョップ画像に切り替える
-                         if (chopSprite != null && _spriteRenderer != null)
-                         {
-                             _spriteRenderer.sprite = chopSprite;
-                         }
-                     });
+
+            // ★ 振り始めた瞬間に確実にチョップ画像にする！ ★
+            if (chopSprite != null && _spriteRenderer != null)
+            {
+                _spriteRenderer.sprite = chopSprite;
+            }
+
+            transform.DOMoveX(swingTargetX, 0.08f).SetEase(Ease.InQuad);
         }
 
         /// <summary>
-        /// ドキドキ中のプルプル緊張振動（指定時間だけ震え続ける）
+        /// ドキドキ中のプルプル緊張振動（確実にチョップ画像で震える）
         /// </summary>
         public void ShiverSuspense(float duration)
         {
             DOTween.Kill(transform);
+
+            // ★ タメに入った瞬間にも確実にチョップ画像であることを保証する ★
+            if (chopSprite != null && _spriteRenderer != null)
+            {
+                _spriteRenderer.sprite = chopSprite;
+            }
+
+            // X座標を確実に中央合掌位置に揃える
+            transform.position = new Vector3(swingTargetX, transform.position.y, transform.position.z);
+
             transform.DOShakePosition(duration, strength: 0.08f, vibrato: 15);
         }
 
@@ -66,7 +75,6 @@ namespace HaeTataki
             DOTween.Kill(transform);
             if (_spriteRenderer != null)
             {
-                // 痛がりスプライト（真っ赤な痺れ手）に切り替え
                 if (hurtSprite != null)
                 {
                     _spriteRenderer.sprite = hurtSprite;
@@ -85,6 +93,7 @@ namespace HaeTataki
             transform.DOMove(_initialPosition, duration).SetEase(Ease.OutQuad)
                      .OnComplete(() =>
                      {
+                         // 待機位置に戻ったらパーの手に戻す
                          if (readySprite != null && _spriteRenderer != null)
                          {
                              _spriteRenderer.sprite = readySprite;

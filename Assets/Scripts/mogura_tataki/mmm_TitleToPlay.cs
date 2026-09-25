@@ -15,7 +15,7 @@ public class mmm_TitleToPlay: MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.AnyKeyDown)
+        if (Input.anyKeyDown)
         {
             titlescreen.SetActive(false);
             play.SetActive(true);

@@ -66,32 +66,9 @@ namespace PoseGame
             {
                 LS(170), RS(170), LE(175), RE(175), LH(175), RH(175), LK(175), RK(175),
             }),
-            // Note: a real "guts pose" (elbows pulled back, fist thrust toward camera) relies
-            // on front-back depth that a single front-facing 2D camera can't reliably read, so
-            // it's swapped for a pose with a silhouette that's unambiguous head-on.
-            new PoseTheme("surprised", "びっくりポーズ", "😱", new[]
-            {
-                LS(150), RS(150), LE(35), RE(35), LH(175), RH(175), LK(175), RK(175),
-            }),
-            new PoseTheme("flamingo", "フラミンゴ立ち", "🦩", new[]
-            {
-                LS(90), RS(90), LE(170), RE(170), LH(175), LK(170), RH(90), RK(90),
-            }),
-            new PoseTheme("squat", "スクワット", "🏋", new[]
-            {
-                LS(90), RS(90), LE(170), RE(170), LH(95), RH(95), LK(85), RK(85),
-            }),
-            new PoseTheme("half_banzai", "片手バンザイ", "🙋", new[]
-            {
-                LS(170), RS(15, 35), LE(175), RE(165), LH(175), RH(175), LK(175), RK(175),
-            }),
             new PoseTheme("ninja", "忍者ポーズ", "🥷", new[]
             {
                 LS(40), RS(40), LE(60), RE(60), LH(140), RH(140), LK(130), RK(130),
-            }),
-            new PoseTheme("jumping_jack", "ジャンピングジャック", "🤾", new[]
-            {
-                LS(170), RS(170), LE(175), RE(175), LH(160), RH(160), LK(170), RK(170),
             }),
         };
     }

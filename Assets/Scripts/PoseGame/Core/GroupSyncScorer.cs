@@ -3,10 +3,10 @@ using UnityEngine;
 
 namespace PoseGame
 {
-    // Scores each player not against a fixed target pose, but against how closely their pose
-    // matches everyone ELSE currently in frame — a "みんなで息を合わせる" cooperative sync score
-    // rather than a vs-a-target competition. `jointSet` still supplies which joints to compare
-    // and how strict to be (Weight / ToleranceDegrees); its TargetDegrees is unused here.
+    // Scores each player on two things per joint, averaged together: how close they are to the
+    // theme's actual target angle (did they do the named pose?) and how closely they match
+    // everyone ELSE currently in frame (a "みんなで息を合わせる" cooperative sync bonus). Both
+    // halves share the same ToleranceDegrees/Weight from `jointSet`.
     public static class GroupSyncScorer
     {
         const float VisibilityThreshold = 0.4f;
@@ -63,8 +63,13 @@ namespace PoseGame
 
                 foreach (var kv in anglesByPlayer)
                 {
-                    var diff = Mathf.Abs(kv.Value - mean);
-                    var subScore = Mathf.Clamp01(1f - diff / target.ToleranceDegrees);
+                    var syncDiff = Mathf.Abs(kv.Value - mean);
+                    var syncScore = Mathf.Clamp01(1f - syncDiff / target.ToleranceDegrees);
+
+                    var targetDiff = Mathf.Abs(kv.Value - target.TargetDegrees);
+                    var targetScore = Mathf.Clamp01(1f - targetDiff / target.ToleranceDegrees);
+
+                    var subScore = (syncScore + targetScore) * 0.5f;
 
                     weightedSum[kv.Key] += subScore * target.Weight;
                     totalWeight[kv.Key] += target.Weight;

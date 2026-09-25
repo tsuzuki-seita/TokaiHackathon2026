@@ -31,6 +31,7 @@ namespace PoseGame.UI
         // Result
         Text m_ResultTitle;
         Text m_TeamScoreText;
+        Text m_OverallScoreText;
         Text m_TeamScoreCommentText;
         RawImage m_PhotoThumbnail;
         GameObject m_PhotoThumbFrame;
@@ -82,36 +83,107 @@ namespace PoseGame.UI
             m_TitlePanel = UIFactory.CreateRect("TitlePanel", m_Canvas.transform);
             UIFactory.Stretch(m_TitlePanel);
 
-            var title = UIFactory.CreateText("Title", m_TitlePanel, "ポーズマッチ！", 100, Color.white);
+            // Life is Tech!-style bright, colorful look (colors pulled from their live site's
+            // CSS): a clean off-white base with vivid blue as the primary accent, instead of the
+            // shared dark-navy app background — only shown behind the title screen.
+            var titleBackdrop = UIFactory.CreatePanel("TitleBackdrop", m_TitlePanel, new Color(0.965f, 0.965f, 0.97f));
+            UIFactory.Stretch((RectTransform)titleBackdrop.transform);
+            titleBackdrop.raycastTarget = false;
+
+            BuildTitleBackgroundArt(m_TitlePanel);
+            BuildTitleMascot(m_TitlePanel);
+
+            var titleTextColor = new Color(0.11f, 0.11f, 0.12f); // #1D1D1F
+            var title = UIFactory.CreateText("Title", m_TitlePanel, "せーのでポーズ！", 100, titleTextColor);
             var titleRt = (RectTransform)title.transform;
             titleRt.anchorMin = new Vector2(0.5f, 0.62f);
             titleRt.anchorMax = new Vector2(0.5f, 0.62f);
             titleRt.sizeDelta = new Vector2(1400, 140);
 
-            // "Attract mode" idle motion so the title screen stays lively/eye-catching on a big
-            // screen when nobody's actively playing (e.g. a booth/camp setting).
-            titleRt.DOAnchorPosY(titleRt.anchoredPosition.y + 14f, 1.1f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
-            DOTween.Sequence()
-                .Append(title.DOColor(new Color(1f, 0.85f, 0.3f), 1f))
-                .Append(title.DOColor(new Color(0.4f, 0.85f, 1f), 1f))
-                .Append(title.DOColor(Color.white, 1f))
-                .SetLoops(-1);
-
             var subtitle = UIFactory.CreateText("Subtitle", m_TitlePanel,
                 "カメラの前でお題のポーズをキメて、チームの一致度をきそおう！\nラウンドが進むごとに、参加人数が増えていきます(最大3人)。", 32,
-                new Color(1, 1, 1, 0.8f), TextAnchor.MiddleCenter, FontStyle.Normal);
+                new Color(0.11f, 0.11f, 0.12f, 0.75f), TextAnchor.MiddleCenter, FontStyle.Normal);
             var subRt = (RectTransform)subtitle.transform;
             subRt.anchorMin = new Vector2(0.5f, 0.46f);
             subRt.anchorMax = new Vector2(0.5f, 0.46f);
             subRt.sizeDelta = new Vector2(1500, 100);
 
-            var startBtn = UIFactory.CreateButton("StartButton", m_TitlePanel, "スタート", new Color(0.95f, 0.55f, 0.15f), Color.white, 52);
+            var startBtn = UIFactory.CreateButton("StartButton", m_TitlePanel, "スタート", new Color(0f, 0.37f, 1f), Color.white, 52);
             var startRt = (RectTransform)startBtn.transform;
             startRt.anchorMin = new Vector2(0.5f, 0.26f);
             startRt.anchorMax = new Vector2(0.5f, 0.26f);
             startRt.sizeDelta = new Vector2(420, 100);
             startBtn.onClick.AddListener(() => OnStartRequested?.Invoke());
             startRt.DOScale(1.08f, 0.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+        }
+
+        // Two friendly mascots flanking the title — a gentle bob + sway so they read as "alive"
+        // without the jerkiness that made the old title text animation feel off. Slightly offset
+        // timing so the pair doesn't move in lockstep. Not mirrored: the asset pack's license
+        // asks that the character's look not be altered, and flipping would reverse which hand
+        // holds the camera.
+        void BuildTitleMascot(RectTransform parent)
+        {
+            var texture = Resources.Load<Texture2D>("Sprites/FoxMascot");
+            if (texture == null)
+                return;
+
+            // "space-between" style with the title occupying the middle, but pulled in from the
+            // screen edges for breathing room, and sitting a bit lower than the title's baseline.
+            CreateMascot(parent, texture, 0.15f, phaseOffset: 0f);
+            CreateMascot(parent, texture, 0.85f, phaseOffset: 0.3f);
+        }
+
+        static void CreateMascot(RectTransform parent, Texture2D texture, float anchorX, float phaseOffset)
+        {
+            var mascot = UIFactory.CreateRawImage("Mascot", parent, texture);
+            mascot.raycastTarget = false;
+            var rt = (RectTransform)mascot.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(anchorX, 0.58f); // a bit lower than the title text
+            var aspect = (float)texture.width / texture.height;
+            const float height = 200f;
+            rt.sizeDelta = new Vector2(height * aspect, height);
+
+            rt.DOAnchorPosY(rt.anchoredPosition.y + 16f, 1.6f).SetDelay(phaseOffset).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+            rt.DOLocalRotate(new Vector3(0, 0, 4f), 2.2f).SetDelay(phaseOffset).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+        }
+
+        // Decorative, code-only art behind the title text: soft diamond color washes echoing the
+        // title's multi-color LIT-brand accent palette (blue/yellow/green/purple), drifting
+        // slowly so the title screen stays lively when idle (booth/camp setting). No image
+        // assets — matches the project's flat-color style.
+        void BuildTitleBackgroundArt(RectTransform parent)
+        {
+            var art = UIFactory.CreateRect("BackgroundArt", parent);
+            UIFactory.Stretch(art);
+
+            var blueWash = UIFactory.CreateDot("BlueWash", art, new Color(0f, 0.37f, 1f, 0.14f), 900f); // #005FFF
+            blueWash.raycastTarget = false;
+            var blueRt = (RectTransform)blueWash.transform;
+            blueRt.anchorMin = blueRt.anchorMax = new Vector2(0.12f, 0.82f);
+            blueRt.localRotation = Quaternion.Euler(0, 0, 45f);
+            blueRt.DOAnchorPosY(blueRt.anchoredPosition.y + 40f, 4.5f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+
+            var yellowWash = UIFactory.CreateDot("YellowWash", art, new Color(0.98f, 0.78f, 0f, 0.16f), 800f); // #FBC800
+            yellowWash.raycastTarget = false;
+            var yellowRt = (RectTransform)yellowWash.transform;
+            yellowRt.anchorMin = yellowRt.anchorMax = new Vector2(0.9f, 0.15f);
+            yellowRt.localRotation = Quaternion.Euler(0, 0, 45f);
+            yellowRt.DOAnchorPosY(yellowRt.anchoredPosition.y - 40f, 5.5f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+
+            var greenWash = UIFactory.CreateDot("GreenWash", art, new Color(0f, 0.64f, 0.27f, 0.12f), 700f); // #00A446
+            greenWash.raycastTarget = false;
+            var greenRt = (RectTransform)greenWash.transform;
+            greenRt.anchorMin = greenRt.anchorMax = new Vector2(0.82f, 0.85f);
+            greenRt.localRotation = Quaternion.Euler(0, 0, 45f);
+            greenRt.DOAnchorPosX(greenRt.anchoredPosition.x - 30f, 4f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+
+            var purpleWash = UIFactory.CreateDot("PurpleWash", art, new Color(0.42f, 0.28f, 0.94f, 0.10f), 650f); // #6C48EF
+            purpleWash.raycastTarget = false;
+            var purpleRt = (RectTransform)purpleWash.transform;
+            purpleRt.anchorMin = purpleRt.anchorMax = new Vector2(0.1f, 0.14f);
+            purpleRt.localRotation = Quaternion.Euler(0, 0, 45f);
+            purpleRt.DOAnchorPosX(purpleRt.anchoredPosition.x + 30f, 5f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
         }
 
         void BuildPlayPanel()
@@ -247,9 +319,18 @@ namespace PoseGame.UI
 
             m_TeamScoreText = UIFactory.CreateText("TeamScore", m_ResultPanel, "みんなの一致度  0%", 100, new Color(1f, 0.85f, 0.3f));
             var teamScoreRt = (RectTransform)m_TeamScoreText.transform;
-            teamScoreRt.anchorMin = new Vector2(0.5f, 0.58f);
-            teamScoreRt.anchorMax = new Vector2(0.5f, 0.58f);
+            teamScoreRt.anchorMin = new Vector2(0.5f, 0.66f);
+            teamScoreRt.anchorMax = new Vector2(0.5f, 0.66f);
             teamScoreRt.sizeDelta = new Vector2(1700, 150);
+
+            // Only shown on the final round: the average across all rounds, distinct from the
+            // per-round number above it.
+            m_OverallScoreText = UIFactory.CreateText("OverallScore", m_ResultPanel, "", 56, new Color(0.4f, 0.85f, 1f));
+            var overallScoreRt = (RectTransform)m_OverallScoreText.transform;
+            overallScoreRt.anchorMin = new Vector2(0.5f, 0.53f);
+            overallScoreRt.anchorMax = new Vector2(0.5f, 0.53f);
+            overallScoreRt.sizeDelta = new Vector2(1500, 70);
+            m_OverallScoreText.gameObject.SetActive(false);
 
             m_TeamScoreCommentText = UIFactory.CreateText("TeamScoreComment", m_ResultPanel, "", 34,
                 new Color(1, 1, 1, 0.85f), TextAnchor.MiddleCenter, FontStyle.Normal);
@@ -258,33 +339,13 @@ namespace PoseGame.UI
             commentRt.anchorMax = new Vector2(0.5f, 0.44f);
             commentRt.sizeDelta = new Vector2(1500, 60);
 
-            m_PlayAgainButton = UIFactory.CreateButton("PlayAgainButton", m_ResultPanel, "もういちど", new Color(0.95f, 0.55f, 0.15f), Color.white, 40);
-            var againRt = (RectTransform)m_PlayAgainButton.transform;
-            againRt.anchorMin = new Vector2(0.32f, 0.16f);
-            againRt.anchorMax = new Vector2(0.32f, 0.16f);
-            againRt.sizeDelta = new Vector2(380, 90);
-            m_PlayAgainButton.onClick.AddListener(() => OnPlayAgainRequested?.Invoke());
-
-            m_BackToTitleButton = UIFactory.CreateButton("BackToTitleButton", m_ResultPanel, "タイトルへ", new Color(0.25f, 0.27f, 0.33f), Color.white, 40);
-            var titleBtnRt = (RectTransform)m_BackToTitleButton.transform;
-            titleBtnRt.anchorMin = new Vector2(0.68f, 0.16f);
-            titleBtnRt.anchorMax = new Vector2(0.68f, 0.16f);
-            titleBtnRt.sizeDelta = new Vector2(380, 90);
-            m_BackToTitleButton.onClick.AddListener(() => OnBackToTitleRequested?.Invoke());
-
-            // Shown in the same spot as the buttons during a mid-game round result, so it's
-            // clear the screen will auto-advance rather than being the end of the game.
-            m_NextRoundHintText = UIFactory.CreateText("NextRoundHint", m_ResultPanel, "つぎのラウンドへ…", 32,
-                new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter, FontStyle.Normal);
-            var nextHintRt = (RectTransform)m_NextRoundHintText.transform;
-            nextHintRt.anchorMin = new Vector2(0.5f, 0.16f);
-            nextHintRt.anchorMax = new Vector2(0.5f, 0.16f);
-            nextHintRt.sizeDelta = new Vector2(600, 60);
-
+            // Bottom cluster, top to bottom: photo thumbnail, its status caption, then the
+            // buttons/hint row — each given its own band so they can't overlap (they used to sit
+            // almost on top of each other at y=0.16/0.17/0.28, which visibly collided).
             var thumbFrame = UIFactory.CreatePanel("PhotoThumbFrame", m_ResultPanel, new Color(1, 1, 1, 0.9f));
             var thumbFrameRt = (RectTransform)thumbFrame.transform;
-            thumbFrameRt.anchorMin = new Vector2(0.5f, 0.28f);
-            thumbFrameRt.anchorMax = new Vector2(0.5f, 0.28f);
+            thumbFrameRt.anchorMin = new Vector2(0.5f, 0.30f);
+            thumbFrameRt.anchorMax = new Vector2(0.5f, 0.30f);
             thumbFrameRt.sizeDelta = new Vector2(300, 176);
             m_PhotoThumbFrame = thumbFrame.gameObject;
             m_PhotoThumbFrame.SetActive(false);
@@ -298,9 +359,32 @@ namespace PoseGame.UI
 
             m_PhotoStatusText = UIFactory.CreateText("PhotoStatus", m_ResultPanel, "", 20, new Color(1, 1, 1, 0.75f));
             var photoStatusRt = (RectTransform)m_PhotoStatusText.transform;
-            photoStatusRt.anchorMin = new Vector2(0.5f, 0.17f);
-            photoStatusRt.anchorMax = new Vector2(0.5f, 0.17f);
-            photoStatusRt.sizeDelta = new Vector2(320, 30);
+            photoStatusRt.anchorMin = new Vector2(0.5f, 0.185f);
+            photoStatusRt.anchorMax = new Vector2(0.5f, 0.185f);
+            photoStatusRt.sizeDelta = new Vector2(400, 30);
+
+            m_PlayAgainButton = UIFactory.CreateButton("PlayAgainButton", m_ResultPanel, "もういちど", new Color(0.95f, 0.55f, 0.15f), Color.white, 40);
+            var againRt = (RectTransform)m_PlayAgainButton.transform;
+            againRt.anchorMin = new Vector2(0.32f, 0.10f);
+            againRt.anchorMax = new Vector2(0.32f, 0.10f);
+            againRt.sizeDelta = new Vector2(380, 90);
+            m_PlayAgainButton.onClick.AddListener(() => OnPlayAgainRequested?.Invoke());
+
+            m_BackToTitleButton = UIFactory.CreateButton("BackToTitleButton", m_ResultPanel, "タイトルへ", new Color(0.25f, 0.27f, 0.33f), Color.white, 40);
+            var titleBtnRt = (RectTransform)m_BackToTitleButton.transform;
+            titleBtnRt.anchorMin = new Vector2(0.68f, 0.10f);
+            titleBtnRt.anchorMax = new Vector2(0.68f, 0.10f);
+            titleBtnRt.sizeDelta = new Vector2(380, 90);
+            m_BackToTitleButton.onClick.AddListener(() => OnBackToTitleRequested?.Invoke());
+
+            // Shown in the same spot as the buttons during a mid-game round result, so it's
+            // clear the screen will auto-advance rather than being the end of the game.
+            m_NextRoundHintText = UIFactory.CreateText("NextRoundHint", m_ResultPanel, "つぎのラウンドへ…", 32,
+                new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter, FontStyle.Normal);
+            var nextHintRt = (RectTransform)m_NextRoundHintText.transform;
+            nextHintRt.anchorMin = new Vector2(0.5f, 0.10f);
+            nextHintRt.anchorMax = new Vector2(0.5f, 0.10f);
+            nextHintRt.sizeDelta = new Vector2(600, 60);
         }
 
         void BuildFlashOverlay()
@@ -376,7 +460,7 @@ namespace PoseGame.UI
             m_CountdownRoot.gameObject.SetActive(false);
         }
 
-        public void ShowResults(PoseTheme theme, float teamScore01, bool isFinalRound, Texture2D photo = null, string photoPath = null)
+        public void ShowResults(PoseTheme theme, float teamScore01, bool isFinalRound, Texture2D photo = null, string photoPath = null, float overallScore01 = 0f)
         {
             m_PlayPanel.gameObject.SetActive(false);
             m_ResultPanel.gameObject.SetActive(true);
@@ -398,6 +482,18 @@ namespace PoseGame.UI
             m_TeamScoreText.transform.DOKill();
             m_TeamScoreText.transform.DOScale(1f, 0.5f).SetEase(Ease.OutElastic);
 
+            // Only the final round has an "overall" to speak of — mid-game rounds only ever show
+            // that round's own number.
+            m_OverallScoreText.gameObject.SetActive(isFinalRound);
+            if (isFinalRound)
+            {
+                var overallPct = Mathf.RoundToInt(Mathf.Clamp01(overallScore01) * 100f);
+                m_OverallScoreText.text = $"総合成績  {overallPct}%";
+                m_OverallScoreText.transform.localScale = Vector3.one * 0.6f;
+                m_OverallScoreText.transform.DOKill();
+                m_OverallScoreText.transform.DOScale(1f, 0.5f).SetDelay(0.15f).SetEase(Ease.OutElastic);
+            }
+
             if (photo != null)
             {
                 m_PhotoThumbFrame.SetActive(true);
@@ -411,8 +507,12 @@ namespace PoseGame.UI
             }
 
             // Everyone gets some confetti regardless of score (this is a cooperative game, not
-            // a competition), just scaled up a bit when the group really nailed the sync.
-            ConfettiEffect.Burst(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(30, 90, teamScore01)));
+            // a competition), just scaled up a bit when the group really nailed the sync. The
+            // final round gets the bigger party-popper-from-both-sides send-off.
+            if (isFinalRound)
+                ConfettiEffect.BurstFromSides(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(250, 350, teamScore01)));
+            else
+                ConfettiEffect.Burst(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(30, 90, teamScore01)));
         }
 
         static string TeamScoreComment(int pct)

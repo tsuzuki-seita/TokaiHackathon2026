@@ -46,11 +46,6 @@ public class CV_VolleyController : MonoBehaviour
     [SerializeField] Text turnMessage;
     [SerializeField] Text turnHint;
 
-    [Header("プレイ中のHUD")]
-    [SerializeField] GameObject hud;
-    [SerializeField] Text hudPlayer;
-    [SerializeField] Text hudBall;
-    [SerializeField] Text hudHits;
     [Tooltip("GO! などの中央の大きな文字")]
     [SerializeField] Text bigText;
 
@@ -62,8 +57,10 @@ public class CV_VolleyController : MonoBehaviour
 
     [Header("ルール")]
     [SerializeField, Range(1, 10)] int spikesPerPlayer = 3;
-    [Tooltip("1球あたりの制限時間(秒)")]
+    [Tooltip("カーソルのゲージが0になるまでの秒数")]
     [SerializeField] float timeLimit = 4f;
+    [Tooltip("ゲージが0になる瞬間の前後、この秒数だけスパイク判定を受け付ける（タイミング猶予）")]
+    [SerializeField] float spikeTimingWindow = 0.15f;
     [Tooltip("カーソルが出てからこの秒数は反応しない（誤検出防止）")]
     [SerializeField] float armDelay = 0.5f;
 
@@ -156,7 +153,7 @@ public class CV_VolleyController : MonoBehaviour
             (cameraImage, nameof(cameraImage)), (glass, nameof(glass)), (fxLayer, nameof(fxLayer)),
             (popTextPrefab, nameof(popTextPrefab)), (setupScreen, nameof(setupScreen)),
             (turnPanel, nameof(turnPanel)), (turnTitle, nameof(turnTitle)), (turnMessage, nameof(turnMessage)), (turnHint, nameof(turnHint)),
-            (hud, nameof(hud)), (hudPlayer, nameof(hudPlayer)), (hudBall, nameof(hudBall)), (hudHits, nameof(hudHits)), (bigText, nameof(bigText)),
+            (bigText, nameof(bigText)),
             (resultPanel, nameof(resultPanel)), (resultBody, nameof(resultBody)), (retryButton, nameof(retryButton)), (changeMemberButton, nameof(changeMemberButton)),
         };
 
@@ -262,11 +259,6 @@ public class CV_VolleyController : MonoBehaviour
     IEnumerator PlayerTurn(int p)
     {
         var color = PlayerColor(p);
-        hud.SetActive(true);
-        hudPlayer.text = $"{playerNames[p]}  ({p + 1} / {PlayerCount})";
-        hudPlayer.color = color;
-        hudBall.text = "";
-        UpdateHitsHud();
 
         // カメラの前に立ってもらい、スタート用のカーソルを叩いたら開始
         ShowTurn($"{playerNames[p]} の番！", "カメラの前に立って、丸をスパイクしてスタート", "（Space でもスタート）", color);
@@ -279,7 +271,6 @@ public class CV_VolleyController : MonoBehaviour
 
         for (int b = 0; b < spikesPerPlayer; b++)
         {
-            hudBall.text = $"BALL  {b + 1} / {spikesPerPlayer}";
             yield return Serve(p, b, color);
         }
 
@@ -302,7 +293,6 @@ public class CV_VolleyController : MonoBehaviour
         {
             results[p, b] = true;
             totalHits++;
-            UpdateHitsHud();
             PlaySE(SoundManager.SEData.SETYPE.CV_Spike);
             PopText("NICE!", UVToFx(spikeUV) + new Vector2(0, 90), color);
             yield return BallFlight(spikeUV);
@@ -359,7 +349,8 @@ public class CV_VolleyController : MonoBehaviour
 
     /// <summary>
     /// カーソルを出してスパイクを待つ。結果は spikeHit / spikeUV に入る。
-    /// limit <= 0 なら時間無制限（Spaceでもスキップ可）
+    /// limit <= 0 なら時間無制限（いつ叩いてもよく、Spaceでもスキップ可）。
+    /// limit > 0 のときはゲージが0になる瞬間（±spikeTimingWindow秒）だけ判定を受け付ける。
     /// </summary>
     IEnumerator WaitForSpike(Vector2 uv, float limit, Color color)
     {
@@ -370,24 +361,59 @@ public class CV_VolleyController : MonoBehaviour
 
         float t = 0f;
         yield return null;
-        while (limit <= 0 || t < limit)
+
+        if (limit <= 0)
+        {
+            // 時間無制限：従来通りいつ叩いてもヒット
+            while (true)
+            {
+                t += Time.deltaTime;
+                if (t >= armDelay)
+                {
+                    if (detector.Detect(uv, cursorRadius, out var hitUV))
+                    {
+                        spikeHit = true;
+                        spikeUV = hitUV;
+                        break;
+                    }
+                    if (DebugHitPressed() || NextPressed())
+                    {
+                        spikeHit = true;
+                        break;
+                    }
+                }
+                yield return null;
+            }
+            cursor.Hide(spikeHit);
+            yield break;
+        }
+
+        // ゲージが0になる直前までは表示だけ更新し、判定はまだ行わない
+        float windowStart = Mathf.Max(armDelay, limit - spikeTimingWindow);
+        while (t < windowStart)
         {
             t += Time.deltaTime;
-            if (limit > 0) cursor.SetTimer(1f - t / limit);
+            cursor.SetTimer(1f - t / limit);
+            yield return null;
+        }
 
-            if (t >= armDelay)
+        // ゲージが0になる瞬間の前後（windowStart 〜 limit + spikeTimingWindow）だけ判定
+        float windowEnd = limit + spikeTimingWindow;
+        while (t < windowEnd)
+        {
+            t += Time.deltaTime;
+            cursor.SetTimer(Mathf.Max(0f, 1f - t / limit));
+
+            if (detector.Detect(uv, cursorRadius, out var hitUV))
             {
-                if (detector.Detect(uv, cursorRadius, out var hitUV))
-                {
-                    spikeHit = true;
-                    spikeUV = hitUV;
-                    break;
-                }
-                if (DebugHitPressed() || (limit <= 0 && NextPressed()))
-                {
-                    spikeHit = true;
-                    break;
-                }
+                spikeHit = true;
+                spikeUV = hitUV;
+                break;
+            }
+            if (DebugHitPressed())
+            {
+                spikeHit = true;
+                break;
             }
             yield return null;
         }
@@ -508,7 +534,6 @@ public class CV_VolleyController : MonoBehaviour
         setupScreen.gameObject.SetActive(panel == setupScreen.gameObject);
         turnPanel.SetActive(panel == turnPanel);
         resultPanel.SetActive(panel == resultPanel);
-        hud.SetActive(panel == hud);
     }
 
     void ShowTurn(string title, string message, string hint, Color color)
@@ -548,8 +573,6 @@ public class CV_VolleyController : MonoBehaviour
         seq.Insert(0.5f, t.DOFade(0f, 0.4f));
         seq.OnComplete(() => Destroy(t.gameObject));
     }
-
-    void UpdateHitsHud() => hudHits.text = $"ヒット  {totalHits}";
 
     Color PlayerColor(int p) => playerColors.Length > 0 ? playerColors[p % playerColors.Length] : Color.white;
 

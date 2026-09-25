@@ -49,7 +49,15 @@ namespace PoseGame.UI
                     .SetEase(Ease.Linear)
                     .SetDelay(Random.Range(0f, 0.25f));
                 piece.DOFade(0f, 0.6f).SetDelay(duration * 0.6f)
-                    .OnComplete(() => { if (piece != null) Object.Destroy(piece.gameObject); });
+                    .OnComplete(() =>
+                    {
+                        // The fade can finish before the position/rotation tweens above (their
+                        // durations and delays are randomized independently) — kill them first so
+                        // destroying this piece doesn't leave a tween pointing at a dead RectTransform.
+                        if (piece == null) return;
+                        rt.DOKill();
+                        Object.Destroy(piece.gameObject);
+                    });
             }
         }
     }

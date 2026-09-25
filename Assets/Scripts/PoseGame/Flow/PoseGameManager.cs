@@ -12,8 +12,13 @@ namespace PoseGame
         // The unique key this mini-game reports its score under (see MiniGameScoreBoard).
         public const string MiniGameId = "PoseMatch";
 
-        public const int TotalRounds = 5;
+        public const int TotalRounds = 3;
         public const int MaxPlayers = 3;
+
+        // Fixed sequence: ninja first, t_pose in between, banzai as the final (3-player) round —
+        // no pose repeats back-to-back.
+        static readonly string[] s_ThemeIdsByRound = { "ninja", "t_pose", "banzai" };
+        static readonly int[] s_ZoneCountsByRound = { 2, 2, 3 };
         const float ThemeAnnounceSeconds = 0.6f;
         const float PoseHoldSeconds = 6f; // the whole hold counts toward the score — players already got into position during the ready prompt + countdown
         const float RoundResultSeconds = 3.5f;
@@ -23,8 +28,6 @@ namespace PoseGame
         public PoseGameUI Ui;
 
         readonly List<float> m_RoundTeamScores = new List<float>();
-        readonly List<PoseTheme> m_ThemeBag = new List<PoseTheme>();
-        System.Random m_Random = new System.Random();
 
         CancellationTokenSource m_RunCts;
 
@@ -56,16 +59,12 @@ namespace PoseGame
 
         // The team starts small and grows each round (up to MaxPlayers) so newcomers only need
         // to join in when it's their turn, instead of everyone crowding into frame from round 1.
-        static int ZoneCountForRound(int round) => Mathf.Min(round + 1, MaxPlayers);
+        static int ZoneCountForRound(int round) => s_ZoneCountsByRound[round - 1];
 
-        PoseTheme NextTheme()
+        static PoseTheme ThemeForRound(int round)
         {
-            if (m_ThemeBag.Count == 0)
-                m_ThemeBag.AddRange(PoseThemeLibrary.Themes);
-            var index = m_Random.Next(m_ThemeBag.Count);
-            var theme = m_ThemeBag[index];
-            m_ThemeBag.RemoveAt(index);
-            return theme;
+            var id = s_ThemeIdsByRound[round - 1];
+            return PoseThemeLibrary.Themes.First(t => t.Id == id);
         }
 
         async UniTaskVoid RunGameAsync(CancellationToken ct)
@@ -92,7 +91,7 @@ namespace PoseGame
                 Tracker.SetZoneCount(zoneCount);
                 Ui.ShowPlay(zoneCount);
 
-                var theme = NextTheme();
+                var theme = ThemeForRound(round);
                 Ui.SetRoundText(round, TotalRounds);
                 Ui.AnnounceTheme(theme);
 

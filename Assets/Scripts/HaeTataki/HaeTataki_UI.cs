@@ -246,7 +246,7 @@ namespace HaeTataki
 
             if (restartGuideText != null)
             {
-                restartGuideText.text = "▶ PRESS [SPACE] FOR TITLE ◀";
+                restartGuideText.text = "▶ PRESS [SPACE] FOR GAME SELECT ◀";
                 DOTween.Kill(restartGuideText);
                 restartGuideText.DOFade(0.3f, 0.6f).SetLoops(-1, LoopType.Yoyo);
             }

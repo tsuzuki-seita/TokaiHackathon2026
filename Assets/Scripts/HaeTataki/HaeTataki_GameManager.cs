@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Cysharp.Threading.Tasks;
 using System.Threading;
 using System.Collections.Generic;
@@ -86,9 +87,27 @@ namespace HaeTataki
                     if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.R))
                     {
                         SafePlaySE(SoundManager.SEData.SETYPE.Button);
-                        ToTitle();
+                        ToSelectScene();
                     }
                     break;
+            }
+        }
+
+        // The result screen used to loop back to this game's own internal title (ToTitle),
+        // which meant finishing a round never actually returned to the mini-game hub. Route
+        // through the shared ReturnToSelectScene singleton so timeScale/cursor state gets reset
+        // the same way every other game's return path will; fall back to a direct scene load if
+        // that singleton hasn't been created yet for some reason.
+        private void ToSelectScene()
+        {
+            if (ReturnToSelectScene.Instance != null)
+            {
+                ReturnToSelectScene.Instance.ReturnToSelect();
+            }
+            else
+            {
+                Time.timeScale = 1f;
+                SceneManager.LoadScene("SelectScene");
             }
         }
 

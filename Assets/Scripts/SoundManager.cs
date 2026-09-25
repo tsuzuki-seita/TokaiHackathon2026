@@ -115,6 +115,7 @@ public class SoundManager : MonoBehaviour
             SkillSelect = 1,
             Mating = 2,
             InGame = 3,
+            CV_InGame = 4,
         }
 
         public BGMTYPE bgm;
@@ -142,6 +143,12 @@ public class SoundManager : MonoBehaviour
             HomingShot = 11,
             Missile = 12,
             Invincible = 13,
+            CV_Spike = 14,
+            CV_GlassCrack = 15,
+            CV_Miss = 16,
+            CV_GlassShatter = 17,
+            CV_Clear = 18,
+            CV_CursorAppear = 19,
         }
 
         public SETYPE se;

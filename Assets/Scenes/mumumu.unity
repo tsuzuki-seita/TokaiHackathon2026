@@ -24310,6 +24310,7 @@ GameObject:
   - component: {fileID: 313091493}
   - component: {fileID: 313091495}
   - component: {fileID: 313091494}
+  - component: {fileID: 313091496}
   m_Layer: 5
   m_Name: FailurePanel
   m_TagString: Untagged
@@ -24375,6 +24376,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 313091492}
   m_CullTransparentMesh: 1
+--- !u!225 &313091496
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 313091492}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1001 &319199231
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -108027,7 +108040,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &770489204
 RectTransform:
   m_ObjectHideFlags: 0
@@ -251235,8 +251248,8 @@ MonoBehaviour:
   round: 0
   number_number: 0
   interval: 0
-  correctUI: {fileID: 0}
-  incorrectUI: {fileID: 0}
+  correctUI: {fileID: 923817903}
+  incorrectUI: {fileID: 313091492}
   resultDisplayTime: 1.5
 --- !u!114 &1704832670
 MonoBehaviour:
@@ -251289,18 +251302,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31bce1ccc2be046828df993811d5cd99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  controller: {fileID: 0}
+  controller: {fileID: 1704832669}
   round1Text: {fileID: 2082898423}
   round2Text: {fileID: 770489203}
   round3Text: {fileID: 1960822899}
-  roundBanner: {fileID: 0}
-  roundBannerText: {fileID: 0}
-  roundBannerDisplayTime: 1
-  correctPanel: {fileID: 0}
-  incorrectPanel: {fileID: 0}
+  roundTextDisplayTime: 1
+  correctPanel: {fileID: 923817904}
+  incorrectPanel: {fileID: 313091493}
   judgedPanelDisplayTime: 0.8
-  finalResultGroup: {fileID: 0}
-  finalResultText: {fileID: 0}
+  finalResultGroup: {fileID: 313091496}
+  finalResultText: {fileID: 647335780}
 --- !u!43 &1737840539
 Mesh:
   m_ObjectHideFlags: 0
@@ -275799,7 +275810,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1960822900
 RectTransform:
   m_ObjectHideFlags: 0
@@ -311366,7 +311377,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2082898424
 RectTransform:
   m_ObjectHideFlags: 0

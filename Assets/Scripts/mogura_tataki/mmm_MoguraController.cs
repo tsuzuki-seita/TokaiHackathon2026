@@ -295,57 +295,43 @@ public class mmm_MoguraController : MonoBehaviour
         answer2.Clear();
         answer3.Clear();
 
-        // 1回目の回答
-        answerNumber = 1;
+        List<int>[] answers = { answer1, answer2, answer3 };
 
-        Debug.Log("パッ！ 1回目");
+        LastRoundCleared = false; // 途中でミスしたら不正解のまま抜ける
 
-        // ここからanswer1への入力を受け付ける
-
-        // 次のリズムまで待つ
-        yield return new WaitForSeconds(1.0f);
-
-
-        // 2回目の回答
-        answerNumber = 2;
-
-        Debug.Log("パッ！ 2回目");
-
-        // ここからanswer2への入力を受け付ける
-
-        // 次のリズムまで待つ
-        yield return new WaitForSeconds(1.0f);
-
-
-        // 3回目の回答
-        answerNumber = 3;
-
-        Debug.Log("パッ！ 3回目");
-
-        // ここからanswer3への入力を受け付ける
-        yield return new WaitForSeconds(1.0f);
-
-        // 3回分の回答を判定
-        bool result1 = CheckAnswer(memory1, answer1);
-        bool result2 = CheckAnswer(memory2, answer2);
-        bool result3 = CheckAnswer(memory3, answer3);
-
-        LastRoundCleared = result1 && result2 && result3;
-
-        if (LastRoundCleared)
+        // memory1→memory2→memory3の順に、1グループ分の入力が揃うたびに即座に判定する
+        for (int i = 0; i < memories.Length; i++)
         {
-            clearedRoundCount++;
-            Debug.Log("正解！");
-        }
-        else
-        {
-            Debug.Log("不正解！");
+            answerNumber = i + 1; // Update()がこの値を見てanswer1〜3への入力を振り分ける
+
+            Debug.Log($"{i + 1}回目の回答待ち");
+
+            // number_number個の入力が揃うまで実際のキー入力を待つ
+            yield return new WaitUntil(() => answers[i].Count >= number_number);
+
+            bool isCorrect = CheckAnswer(memories[i], answers[i]);
+
+            if (!isCorrect)
+            {
+                // ミス：即座にラウンド終了（残りのグループには回答させない）
+                Debug.Log("不正解！ミス");
+                answerNumber = 0;
+                OnRoundJudged?.Invoke(false); // ★正誤確定タイミング（不正解）
+
+                yield break;
+            }
+
+            Debug.Log($"{i + 1}回目 正解！次の入力へ");
+            // 正解：ループを継続し、次のグループの入力を受け付ける
         }
 
-        OnRoundJudged?.Invoke(LastRoundCleared); // ★正誤確定タイミング（UIに「正解」or「不正解」を表示する）
+        // 3グループとも正解
+        LastRoundCleared = true;
+        clearedRoundCount++;
+        Debug.Log("正解！");
 
-        // 回答受付終了
         answerNumber = 0;
+        OnRoundJudged?.Invoke(true); // ★正誤確定タイミング（全問正解）
 
         Debug.Log("回答終了");
     }

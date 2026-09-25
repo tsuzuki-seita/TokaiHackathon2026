@@ -1087,6 +1087,8 @@ MonoBehaviour:
   timeLimit: 2
   spikeTimingWindow: 0.15
   armDelay: 0.5
+  perfectWindow: 0.06
+  shatterRatio: 0.7
   cursorRadius: 0.1
   spawnArea:
     serializedVersion: 2
@@ -1098,6 +1100,7 @@ MonoBehaviour:
   ballFlightTime: 0.35
   ballScaleAtImpact: 2.4
   crackSize: 420
+  titleSprite: {fileID: 21300000, guid: 685c3b9639ac849fcbb80e1952f273c4, type: 3}
   font: {fileID: 12800000, guid: f29bb4d5ce475400eb0c69f544c57557, type: 3}
   playerColors:
   - {r: 1, g: 0.35, b: 0.35, a: 1}

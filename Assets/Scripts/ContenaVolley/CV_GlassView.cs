@@ -119,10 +119,24 @@ public class CV_GlassView : MonoBehaviour
             }
         }
 
+        // 細かいヒビの質感（Kenney の稲妻スプライトを重ねる）
+        for (int i = 0; i < 2; i++)
+        {
+            var fine = CV_UIUtil.CreateImage("FineCrack", root, CV_Assets.Fx("spark_01"), new Color(1, 1, 1, 0.5f), Vector2.one * size * Random.Range(0.9f, 1.3f));
+            fine.rectTransform.SetAsFirstSibling();
+            fine.rectTransform.localRotation = Quaternion.Euler(0, 0, Random.Range(0f, 360f));
+            fine.color = new Color(1, 1, 1, 0);
+            fine.DOFade(0.55f, 0.2f).SetLink(fine.gameObject);
+        }
+
         // 中心の白い衝撃痕
-        var impact = CV_UIUtil.CreateImage("Impact", root, CV_UIUtil.Circle, new Color(1, 1, 1, 0.55f), Vector2.one * size * 0.18f);
+        var impact = CV_UIUtil.CreateImage("Impact", root, CV_Assets.Fx("scorch_01"), new Color(1, 1, 1, 0.85f), Vector2.one * size * 0.45f);
+        impact.rectTransform.localRotation = Quaternion.Euler(0, 0, Random.Range(0f, 360f));
         impact.rectTransform.localScale = Vector3.zero;
         impact.rectTransform.DOScale(1f, 0.15f).SetEase(Ease.OutBack).SetLink(impact.gameObject);
+        var dot = CV_UIUtil.CreateImage("ImpactDot", root, CV_UIUtil.Circle, new Color(1, 1, 1, 0.6f), Vector2.one * size * 0.12f);
+        dot.rectTransform.localScale = Vector3.zero;
+        dot.rectTransform.DOScale(1f, 0.15f).SetEase(Ease.OutBack).SetLink(dot.gameObject);
 
         rect.DOKill(true);
         rect.DOShakeAnchorPos(0.3f, 18f, 40).SetLink(gameObject);

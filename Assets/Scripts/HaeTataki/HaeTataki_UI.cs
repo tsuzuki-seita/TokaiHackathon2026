@@ -30,38 +30,47 @@ namespace HaeTataki
         }
 
         /// <summary>
-        /// バトル開始合図（リボンバウンド拡大）
+        /// ラウンド開始コール（例: "ROUND 1", "FINAL ROUND!!"）
         /// </summary>
-        public void ShowReady(string text = "挟め！")
+        public void ShowReady(string text, float roundDuration = 3.5f)
         {
+            KillAllUITweens();
+
             if (instructionText != null)
             {
                 instructionText.gameObject.SetActive(true);
                 instructionText.text = text;
-                
-                // クラロワのバトル告知風バウンド出現（OutBack）
+
+                // スケールを確実に0から拡大バウンドさせる
                 instructionText.transform.localScale = Vector3.zero;
                 instructionText.transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack);
             }
 
-            // タイマーバーのリセットと5秒カウント開始
-            StartTimer(5.0f);
+            // ラウンド全体の長さに合わせてタイマーを開始
+            StartTimer(roundDuration);
         }
 
+        /// <summary>
+        /// 指示テキストをスッと縮小して消す
+        /// </summary>
         public void HideInstruction()
         {
-            if (instructionText != null)
+            if (instructionText != null && instructionText.gameObject.activeSelf)
             {
-                // 縮小フェードアウト
+                DOTween.Kill(instructionText.transform);
                 instructionText.transform.DOScale(Vector3.zero, 0.2f)
-                               .OnComplete(() => instructionText.gameObject.SetActive(false));
+                               .OnComplete(() =>
+                               {
+                                   instructionText.gameObject.SetActive(false);
+                                   instructionText.transform.localScale = Vector3.one; // 次回のために戻す
+                               });
             }
         }
 
         /// <summary>
-        /// タイマーゲージ減少とサドンデス赤点滅
+        /// タイマーゲージ減少とサドンデス赤点滅（ラウンド時間と同期）
         /// </summary>
-        private void StartTimer(float duration)
+        public void StartTimer(float duration)
         {
             KillTimerTweens();
 
@@ -74,10 +83,11 @@ namespace HaeTataki
             if (timerFillImage != null)
             {
                 timerFillImage.color = _initialTimerColor;
-                // 3.2秒後（チャージ開始時）にサドンデス風赤点滅
+                // チャンスゾーンに入る直前（残り30%）から赤点滅
+                float warningDelay = Mathf.Max(0.5f, duration * 0.65f);
                 _warningSequence = DOTween.Sequence();
-                _warningSequence.AppendInterval(3.2f)
-                                .Append(timerFillImage.DOColor(Color.red, 0.15f).SetLoops(6, LoopType.Yoyo));
+                _warningSequence.AppendInterval(warningDelay)
+                                .Append(timerFillImage.DOColor(Color.red, 0.12f).SetLoops(6, LoopType.Yoyo));
             }
         }
 
@@ -96,21 +106,22 @@ namespace HaeTataki
         }
 
         /// <summary>
-        /// リザルト演出（VICTORY王冠落下 / MISSバッジ）
+        /// 成否リザルト演出（VICTORY王冠落下 / MISS表示）
         /// </summary>
         public void ShowResult(bool isSuccess, float diffMs = 0f)
         {
-            KillTimerTweens();
+            KillAllUITweens();
 
             if (instructionText != null)
             {
+                DOTween.Kill(instructionText.transform);
                 instructionText.gameObject.SetActive(true);
-                instructionText.transform.localScale = Vector3.one;
+                instructionText.transform.localScale = Vector3.one; // 確実に表示サイズに戻す！
 
                 if (isSuccess)
                 {
-                    instructionText.text = "<color=#FFDD00>VICTORY!!</color>\n<size=38>完全撃退！ +100pt</size>";
-                    // クラロワ風 勝利王冠のバウンド落下演出
+                    instructionText.text = "<color=#FFDD00><size=55>VICTORY!!</size></color>\n<size=34>完全撃退！ +100pt</size>";
+                    // 王冠のバウンド落下
                     if (crownIcon != null)
                     {
                         crownIcon.gameObject.SetActive(true);
@@ -120,20 +131,35 @@ namespace HaeTataki
                 }
                 else
                 {
-                    instructionText.text = $"<color=#FF4444>MISS!!</color>\n<size=32>ズレ: {diffMs:F0}ms</size>";
+                    instructionText.text = $"<color=#FF4444><size=55>MISS!!</size></color>\n<size=34>ズレ: {diffMs:F0}ms</size>";
                 }
             }
         }
 
+        /// <summary>
+        /// 次のラウンドへ進むための案内テキストを下部に追記
+        /// </summary>
+        public void AppendNextRoundGuide()
+        {
+            if (instructionText != null && instructionText.gameObject.activeSelf)
+            {
+                instructionText.text += "\n\n<size=26><color=#FFFFFF>▶ PRESS [SPACE] FOR NEXT ROUND ◀</color></size>";
+            }
+        }
+
+        /// <summary>
+        /// 時間切れ演出
+        /// </summary>
         public void ShowTimeOut()
         {
-            KillTimerTweens();
+            KillAllUITweens();
 
             if (instructionText != null)
             {
+                DOTween.Kill(instructionText.transform);
                 instructionText.gameObject.SetActive(true);
                 instructionText.transform.localScale = Vector3.one;
-                instructionText.text = "<color=#990000>TIME OVER...</color>\n<size=32>血を吸われてしまった！</size>";
+                instructionText.text = "<color=#FF2222><size=55>TIME OVER...</size></color>\n<size=34>血を吸われてしまった！</size>";
             }
             if (bloodSplashOverlay != null)
             {
@@ -141,18 +167,20 @@ namespace HaeTataki
             }
         }
 
+        /// <summary>
+        /// ラウンドごとのUIリセット
+        /// </summary>
         public void ResetUI()
         {
-            KillTimerTweens();
+            KillAllUITweens();
 
             if (instructionText != null)
             {
-                DOTween.Kill(instructionText.transform);
                 instructionText.gameObject.SetActive(false);
+                instructionText.transform.localScale = Vector3.one;
             }
             if (crownIcon != null)
             {
-                DOTween.Kill(crownIcon);
                 crownIcon.gameObject.SetActive(false);
             }
             if (bloodSplashOverlay != null)
@@ -167,8 +195,15 @@ namespace HaeTataki
             {
                 timerFillImage.color = _initialTimerColor;
             }
-            if (keyGuideP1 != null) { DOTween.Kill(keyGuideP1); keyGuideP1.localScale = Vector3.one; }
-            if (keyGuideP2 != null) { DOTween.Kill(keyGuideP2); keyGuideP2.localScale = Vector3.one; }
+            if (keyGuideP1 != null) { keyGuideP1.localScale = Vector3.one; }
+            if (keyGuideP2 != null) { keyGuideP2.localScale = Vector3.one; }
+        }
+
+        private void KillAllUITweens()
+        {
+            KillTimerTweens();
+            if (instructionText != null) DOTween.Kill(instructionText.transform);
+            if (crownIcon != null) DOTween.Kill(crownIcon);
         }
 
         private void KillTimerTweens()
@@ -179,7 +214,7 @@ namespace HaeTataki
 
         private void OnDestroy()
         {
-            KillTimerTweens();
+            KillAllUITweens();
         }
     }
 }

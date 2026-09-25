@@ -34,40 +34,48 @@ namespace HaeTataki
         }
 
         /// <summary>
-        /// 蚊の飛行シーケンス
+        /// 蚊の飛行シーケンス（ラウンドごとの難易度パラメータを受け取る）
         /// </summary>
-        public async UniTask StartFlightSequenceAsync(CancellationToken ct)
+        /// <param name="flightDuration">旋回飛行時間（秒）</param>
+        /// <param name="warningDuration">赤点滅の予兆時間（秒）</param>
+        /// <param name="catchableDuration">中央でのチャンス滞在時間（秒）</param>
+        /// <param name="ct">キャンセルトークン</param>
+        public async UniTask StartFlightSequenceAsync(
+            float flightDuration,
+            float warningDuration,
+            float catchableDuration,
+            CancellationToken ct)
         {
             ResetState();
             if (buzzAudio != null) { buzzAudio.pitch = 1.0f; buzzAudio.Play(); }
 
-            // 1. 不規則旋回（2.2秒）
+            // 1. 不規則旋回（指定時間で移動）
             Vector3[] waypoints = new Vector3[] {
                 new Vector3(4f, 2f, 0f), new Vector3(-3f, -1.5f, 0f),
                 new Vector3(2f, -2f, 0f), new Vector3(0f, 2.5f, 0f)
             };
-            transform.DOPath(waypoints, 2.2f, PathType.CatmullRom).SetEase(Ease.Linear);
-            await UniTask.Delay(2200, cancellationToken: ct);
+            transform.DOPath(waypoints, flightDuration, PathType.CatmullRom).SetEase(Ease.Linear);
+            await UniTask.Delay((int)(flightDuration * 1000f), cancellationToken: ct);
 
-            // 2. 予兆（0.6秒）
+            // 2. 予兆（指定時間で赤点滅＆拡大縮小）
             if (buzzAudio != null) buzzAudio.pitch = 1.5f;
-            if (_spriteRenderer != null) _spriteRenderer.DOColor(Color.red, 0.15f).SetLoops(4, LoopType.Yoyo);
-            transform.DOScale(_initialScale * 1.35f, 0.2f).SetLoops(3, LoopType.Yoyo);
-            await UniTask.Delay(600, cancellationToken: ct);
+            if (_spriteRenderer != null) _spriteRenderer.DOColor(Color.red, 0.1f).SetLoops((int)(warningDuration / 0.1f), LoopType.Yoyo);
+            transform.DOScale(_initialScale * 1.35f, 0.15f).SetLoops((int)(warningDuration / 0.15f), LoopType.Yoyo);
+            await UniTask.Delay((int)(warningDuration * 1000f), cancellationToken: ct);
 
-            // 3. チャンスゾーン（中央突入: 0.6秒）
+            // 3. チャンスゾーン（中央突入）
             IsCatchable = true;
-            transform.DOMove(Vector3.zero, 0.15f);
-            await UniTask.Delay(150, cancellationToken: ct);
-            await UniTask.Delay(600, cancellationToken: ct);
+            transform.DOMove(Vector3.zero, 0.12f);
+            await UniTask.Delay(120, cancellationToken: ct);
+            await UniTask.Delay((int)(catchableDuration * 1000f), cancellationToken: ct);
             IsCatchable = false;
 
             // 4. 逃走（時間切れ）
             if (buzzAudio != null) buzzAudio.pitch = 1.0f;
-            transform.DOMove(new Vector3(11f, 6f, 0f), 0.5f).SetEase(Ease.InQuad);
-            await UniTask.Delay(500, cancellationToken: ct);
+            transform.DOMove(new Vector3(11f, 6f, 0f), 0.4f).SetEase(Ease.InQuad);
+            await UniTask.Delay(400, cancellationToken: ct);
         }
-
+        
         /// <summary>
         /// タメ時間中：手の中に隠して非表示にし、羽音を完全に消す！
         /// </summary>

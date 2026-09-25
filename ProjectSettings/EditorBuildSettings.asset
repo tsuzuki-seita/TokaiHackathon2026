@@ -4,5 +4,20 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/SelectScene.unity
+    guid: c43256810d95044b4bcb474df850151d
+  - enabled: 1
+    path: Assets/Scenes/Chiroru-HaeTataki.unity
+    guid: 2309c4cdbdd3c48eeaf4f76ef5a82fc4
+  - enabled: 1
+    path: Assets/Scenes/ContenaVolley.unity
+    guid: 8b40d11c4c281439b8a556949bd2ef86
+  - enabled: 1
+    path: Assets/Scenes/mumumu.unity
+    guid: d17855e62cde15445bc43dbf080af374
+  - enabled: 1
+    path: Assets/Scenes/sap.unity
+    guid: 2c13dab1f286142569c5208fdac5ed0a
   m_configObjects: {}

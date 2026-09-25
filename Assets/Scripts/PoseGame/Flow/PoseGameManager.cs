@@ -178,7 +178,8 @@ namespace PoseGame
                 }
 
                 var isFinalRound = round == TotalRounds;
-                Ui.ShowResults(theme, teamScore, isFinalRound, photo, photoPath);
+                var overallScore = isFinalRound ? m_RoundTeamScores.Average() : 0f;
+                Ui.ShowResults(theme, teamScore, isFinalRound, photo, photoPath, overallScore);
 
                 if (!isFinalRound)
                 {

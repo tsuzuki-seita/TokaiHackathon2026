@@ -31,6 +31,7 @@ namespace PoseGame.UI
         // Result
         Text m_ResultTitle;
         Text m_TeamScoreText;
+        Text m_OverallScoreText;
         Text m_TeamScoreCommentText;
         RawImage m_PhotoThumbnail;
         GameObject m_PhotoThumbFrame;
@@ -318,9 +319,18 @@ namespace PoseGame.UI
 
             m_TeamScoreText = UIFactory.CreateText("TeamScore", m_ResultPanel, "みんなの一致度  0%", 100, new Color(1f, 0.85f, 0.3f));
             var teamScoreRt = (RectTransform)m_TeamScoreText.transform;
-            teamScoreRt.anchorMin = new Vector2(0.5f, 0.58f);
-            teamScoreRt.anchorMax = new Vector2(0.5f, 0.58f);
+            teamScoreRt.anchorMin = new Vector2(0.5f, 0.66f);
+            teamScoreRt.anchorMax = new Vector2(0.5f, 0.66f);
             teamScoreRt.sizeDelta = new Vector2(1700, 150);
+
+            // Only shown on the final round: the average across all rounds, distinct from the
+            // per-round number above it.
+            m_OverallScoreText = UIFactory.CreateText("OverallScore", m_ResultPanel, "", 56, new Color(0.4f, 0.85f, 1f));
+            var overallScoreRt = (RectTransform)m_OverallScoreText.transform;
+            overallScoreRt.anchorMin = new Vector2(0.5f, 0.53f);
+            overallScoreRt.anchorMax = new Vector2(0.5f, 0.53f);
+            overallScoreRt.sizeDelta = new Vector2(1500, 70);
+            m_OverallScoreText.gameObject.SetActive(false);
 
             m_TeamScoreCommentText = UIFactory.CreateText("TeamScoreComment", m_ResultPanel, "", 34,
                 new Color(1, 1, 1, 0.85f), TextAnchor.MiddleCenter, FontStyle.Normal);
@@ -450,7 +460,7 @@ namespace PoseGame.UI
             m_CountdownRoot.gameObject.SetActive(false);
         }
 
-        public void ShowResults(PoseTheme theme, float teamScore01, bool isFinalRound, Texture2D photo = null, string photoPath = null)
+        public void ShowResults(PoseTheme theme, float teamScore01, bool isFinalRound, Texture2D photo = null, string photoPath = null, float overallScore01 = 0f)
         {
             m_PlayPanel.gameObject.SetActive(false);
             m_ResultPanel.gameObject.SetActive(true);
@@ -472,6 +482,18 @@ namespace PoseGame.UI
             m_TeamScoreText.transform.DOKill();
             m_TeamScoreText.transform.DOScale(1f, 0.5f).SetEase(Ease.OutElastic);
 
+            // Only the final round has an "overall" to speak of — mid-game rounds only ever show
+            // that round's own number.
+            m_OverallScoreText.gameObject.SetActive(isFinalRound);
+            if (isFinalRound)
+            {
+                var overallPct = Mathf.RoundToInt(Mathf.Clamp01(overallScore01) * 100f);
+                m_OverallScoreText.text = $"総合成績  {overallPct}%";
+                m_OverallScoreText.transform.localScale = Vector3.one * 0.6f;
+                m_OverallScoreText.transform.DOKill();
+                m_OverallScoreText.transform.DOScale(1f, 0.5f).SetDelay(0.15f).SetEase(Ease.OutElastic);
+            }
+
             if (photo != null)
             {
                 m_PhotoThumbFrame.SetActive(true);
@@ -485,8 +507,12 @@ namespace PoseGame.UI
             }
 
             // Everyone gets some confetti regardless of score (this is a cooperative game, not
-            // a competition), just scaled up a bit when the group really nailed the sync.
-            ConfettiEffect.Burst(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(30, 90, teamScore01)));
+            // a competition), just scaled up a bit when the group really nailed the sync. The
+            // final round gets the bigger party-popper-from-both-sides send-off.
+            if (isFinalRound)
+                ConfettiEffect.BurstFromSides(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(250, 350, teamScore01)));
+            else
+                ConfettiEffect.Burst(m_ResultPanel, Mathf.RoundToInt(Mathf.Lerp(30, 90, teamScore01)));
         }
 
         static string TeamScoreComment(int pct)

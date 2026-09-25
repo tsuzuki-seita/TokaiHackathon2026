@@ -8,9 +8,9 @@ namespace HaeTataki
 {
     public enum GameState
     {
-        Title,       // タイトル画面表示中
-        Playing,     // 3ラウンド進行中
-        FinalResult  // 最終リザルト表示中
+        Title,
+        Playing,
+        FinalResult
     }
 
     [System.Serializable]
@@ -20,6 +20,7 @@ namespace HaeTataki
         public bool isSuccess;
         public float diffMs;
         public int score;
+        public string timingComment;
     }
 
     public class HaeTataki_GameManager : MonoBehaviour
@@ -29,9 +30,12 @@ namespace HaeTataki
         [SerializeField] private HaeTataki_HandActor handLeft;
         [SerializeField] private HaeTataki_HandActor handRight;
         [SerializeField] private HaeTataki_UI ui;
+        [SerializeField] private HaeTataki_CameraCapture cameraCapture;
 
         [Header("Settings")]
         [SerializeField] [Range(0.3f, 3.0f)] private float suspenseDuration = 1.2f;
+        [Tooltip("Round 3(最終ラウンド)の合掌タメ秒数")]
+        [SerializeField] [Range(1.0f, 5.0f)] private float finalRoundSuspenseDuration = 2.4f;
 
         private struct RoundDifficulty
         {
@@ -44,8 +48,8 @@ namespace HaeTataki
         private readonly RoundDifficulty[] _roundSettings = new RoundDifficulty[]
         {
             new RoundDifficulty { flightDuration = 2.2f, warningDuration = 0.60f, catchableDuration = 0.60f, syncTolerance = 0.150f },
-            new RoundDifficulty { flightDuration = 1.7f, warningDuration = 0.40f, catchableDuration = 0.45f, syncTolerance = 0.120f },
-            new RoundDifficulty { flightDuration = 1.2f, warningDuration = 0.25f, catchableDuration = 0.30f, syncTolerance = 0.090f }
+            new RoundDifficulty { flightDuration = 1.8f, warningDuration = 0.45f, catchableDuration = 0.45f, syncTolerance = 0.120f },
+            new RoundDifficulty { flightDuration = 3.2f, warningDuration = 1.10f, catchableDuration = 0.35f, syncTolerance = 0.090f }
         };
 
         private GameState _currentState = GameState.Title;
@@ -101,7 +105,6 @@ namespace HaeTataki
             ui.ResetUI();
             ui.ShowTitle();
 
-            // タイトルBGMは通常通りループ再生
             SafePlayBGM(SoundManager.BGMData.BGMTYPE.Title, isLoop: true);
         }
 
@@ -109,7 +112,6 @@ namespace HaeTataki
         {
             _currentState = GameState.Playing;
             SafePlaySE(SoundManager.SEData.SETYPE.Button);
-            // ゲーム中BGMもループ再生
             SafePlayBGM(SoundManager.BGMData.BGMTYPE.InGame, isLoop: true);
 
             ui.HideTitle();
@@ -179,15 +181,21 @@ namespace HaeTataki
                 mosquito.ResetState();
                 ui.ResetUI();
 
-                string roundTitle = (r == 2) ? "<color=#FF2222><size=55>FINAL ROUND!!</size></color>" : $"<size=55>ROUND {r + 1}</size>";
-                ui.ShowReady(roundTitle);
+                RoundDifficulty diff = _roundSettings[r];
+                float totalRoundTime = diff.flightDuration + diff.warningDuration + diff.catchableDuration;
+
+                // ★ ラウンド文字を特大サイズに拡大！ ★
+                string roundTitle = (r == 2) 
+                    ? "<color=#FF2222><size=85>FINAL ROUND!!</size></color>" 
+                    : $"<size=75>ROUND {r + 1}</size>";
+
+                ui.ShowReady(roundTitle, totalRoundTime);
                 SafePlaySE(SoundManager.SEData.SETYPE.SceneMove);
 
                 await UniTask.Delay(1000, cancellationToken: ct);
                 ui.HideInstruction();
                 await UniTask.Delay(250, cancellationToken: ct);
 
-                RoundDifficulty diff = _roundSettings[r];
                 RunMosquitoFlightAsync(diff, ct).Forget();
 
                 await _roundEndTcs.Task;
@@ -203,13 +211,13 @@ namespace HaeTataki
                 }
             }
 
-            // 全3ラウンド終了 ➔ リザルト画面
             _currentState = GameState.FinalResult;
-
-            // ★リザルト音（ファンファーレ/SE）は1回だけ再生（ループさせない）★
             SafePlayBGM(SoundManager.BGMData.BGMTYPE.Mating, isLoop: false);
 
-            ui.ShowFinalResult(Records);
+            ui.ShowFinalResult(
+                Records,
+                cameraCapture != null ? cameraCapture.FocusFaceTexture : null,
+                cameraCapture != null ? cameraCapture.ActionFaceTexture : null);
         }
 
         private async UniTaskVoid RunMosquitoFlightAsync(RoundDifficulty diff, CancellationToken ct)
@@ -218,7 +226,14 @@ namespace HaeTataki
                 diff.flightDuration,
                 diff.warningDuration,
                 diff.catchableDuration,
-                ct);
+                ct,
+                onWarningCallback: () =>
+                {
+                    if (_currentRoundIndex == 2 && cameraCapture != null)
+                    {
+                        cameraCapture.CaptureFocusFace();
+                    }
+                });
 
             if (!_isResolved)
             {
@@ -228,7 +243,8 @@ namespace HaeTataki
                     roundNumber = _currentRoundIndex + 1,
                     isSuccess = false,
                     diffMs = 9999f,
-                    score = 0
+                    score = 0,
+                    timingComment = "2人とも反応できず…！"
                 });
 
                 await OnTimeOutAsync(ct);
@@ -259,19 +275,29 @@ namespace HaeTataki
 
         private async UniTask ResolveWithSuspenseAsync(bool isSynced, float diffMs, CancellationToken ct)
         {
+            if (_currentRoundIndex == 2 && cameraCapture != null)
+            {
+                cameraCapture.CaptureActionFace();
+            }
+
             await UniTask.Delay(80, cancellationToken: ct);
 
-            bool isSuccess = mosquito.IsCatchable && isSynced;
+            bool isCatchable = mosquito.IsCatchable;
+            bool isSuccess = isCatchable && isSynced;
             int score = CalculateScore(isSuccess, diffMs);
+
+            string comment = GenerateTimingComment(isSuccess, isCatchable, _p1Time, _p2Time);
 
             SafePlaySE(SoundManager.SEData.SETYPE.CrystalBreak);
 
             mosquito.HideInHands();
             SafeSetBGMVolume(0f);
 
-            handLeft.ShiverSuspense(suspenseDuration);
-            handRight.ShiverSuspense(suspenseDuration);
-            await UniTask.Delay((int)(suspenseDuration * 1000f), cancellationToken: ct);
+            float currentSuspense = (_currentRoundIndex == 2) ? finalRoundSuspenseDuration : suspenseDuration;
+
+            handLeft.ShiverSuspense(currentSuspense);
+            handRight.ShiverSuspense(currentSuspense);
+            await UniTask.Delay((int)(currentSuspense * 1000f), cancellationToken: ct);
 
             SafeSetBGMVolume(1f);
 
@@ -280,16 +306,43 @@ namespace HaeTataki
                 roundNumber = _currentRoundIndex + 1,
                 isSuccess = isSuccess,
                 diffMs = diffMs,
-                score = score
+                score = score,
+                timingComment = comment
             });
 
             if (isSuccess)
             {
-                await OnPerfectAsync(score, diffMs, ct);
+                await OnPerfectAsync(score, comment, ct);
             }
             else
             {
-                await OnTimingMissAsync(diffMs, ct);
+                await OnTimingMissAsync(comment, ct);
+            }
+        }
+
+        private string GenerateTimingComment(bool isSuccess, bool isCatchable, float p1Time, float p2Time)
+        {
+            if (p1Time < 0 || p2Time < 0) return "2人とも反応できず…！";
+
+            if (isSuccess)
+            {
+                return "バッチリ！";
+            }
+            else
+            {
+                float diff = Mathf.Abs(p1Time - p2Time);
+                float diffMs = diff * 1000f;
+                bool isP1Early = p1Time < p2Time;
+
+                if (!isCatchable)
+                {
+                    if (diffMs <= 30f) return "息ピッタリなのに…蚊がいない！";
+                    return "早すぎた！蚊がまだ来てない！";
+                }
+
+                if (diffMs <= 180f) return isP1Early ? "右が少し遅れた！" : "左が少し遅れた！";
+                if (diffMs <= 350f) return isP1Early ? "右がめっちゃ遅い！" : "左がめっちゃ遅い！";
+                return isP1Early ? "左のフライング！(右が大遅刻)" : "右のフライング！(左が大遅刻)";
             }
         }
 
@@ -303,18 +356,18 @@ namespace HaeTataki
             return score;
         }
 
-        private async UniTask OnPerfectAsync(int earnedScore, float diffMs, CancellationToken ct)
+        private async UniTask OnPerfectAsync(int earnedScore, string comment, CancellationToken ct)
         {
             handLeft.ReturnToInitial(0.25f);
             handRight.ReturnToInitial(0.25f);
             mosquito.Squash();
-            ui.ShowResult(true, diffMs);
+            ui.ShowResult(true, comment);
 
             SafePlaySE(SoundManager.SEData.SETYPE.Winner);
             await UniTask.Delay(1500, cancellationToken: ct);
         }
 
-        private async UniTask OnTimingMissAsync(float diffMs, CancellationToken ct)
+        private async UniTask OnTimingMissAsync(string comment, CancellationToken ct)
         {
             mosquito.Escape();
             handLeft.ReturnToInitial(0.18f);
@@ -324,7 +377,7 @@ namespace HaeTataki
             if (_p1Time < _p2Time) handRight.PlayHurt();
             else handLeft.PlayHurt();
 
-            ui.ShowResult(false, diffMs);
+            ui.ShowResult(false, comment);
 
             SafePlaySE(SoundManager.SEData.SETYPE.PlayerDamage);
             await UniTask.Delay(1500, cancellationToken: ct);
@@ -348,22 +401,14 @@ namespace HaeTataki
             try
             {
                 SoundManager.Instance.PlayBGM(bgm);
-
-                // SoundManager.cs を変更せず、AudioSource の loop 設定のみ外部から制御
                 var field = typeof(SoundManager).GetField("_bgmAudioSource", BindingFlags.NonPublic | BindingFlags.Instance);
                 if (field != null)
                 {
                     var source = field.GetValue(SoundManager.Instance) as AudioSource;
-                    if (source != null)
-                    {
-                        source.loop = isLoop;
-                    }
+                    if (source != null) source.loop = isLoop;
                 }
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[HaeTataki] BGM '{bgm}' 再生時例外: {ex.Message}");
-            }
+            catch { }
         }
 
         private void SafePlaySE(SoundManager.SEData.SETYPE se)
@@ -375,20 +420,13 @@ namespace HaeTataki
             {
                 SoundManager.Instance.PlaySE(se);
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[HaeTataki] SE '{se}' 再生時例外: {ex.Message}");
-            }
+            catch { }
         }
 
         private void SafeSetBGMVolume(float volume)
         {
             if (SoundManager.Instance == null) return;
-            try
-            {
-                SoundManager.Instance.SetBGMVolume(volume);
-            }
-            catch { }
+            try { SoundManager.Instance.SetBGMVolume(volume); } catch { }
         }
 
         private bool IsBgmValid(SoundManager.BGMData.BGMTYPE bgm)
@@ -399,14 +437,10 @@ namespace HaeTataki
                 if (field == null) return true;
                 var list = field.GetValue(SoundManager.Instance) as List<SoundManager.BGMData>;
                 if (list == null) return false;
-
                 var item = list.Find(d => d != null && d.bgm == bgm);
                 return item != null && item.audioClip != null;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
         private bool IsSeValid(SoundManager.SEData.SETYPE se)
@@ -417,14 +451,10 @@ namespace HaeTataki
                 if (field == null) return true;
                 var list = field.GetValue(SoundManager.Instance) as List<SoundManager.SEData>;
                 if (list == null) return false;
-
                 var item = list.Find(d => d != null && d.se == se);
                 return item != null && item.audioClip != null;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
         #endregion
 

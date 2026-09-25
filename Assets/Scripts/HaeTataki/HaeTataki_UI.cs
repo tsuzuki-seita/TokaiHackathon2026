@@ -11,12 +11,19 @@ namespace HaeTataki
         [SerializeField] private Text instructionText;
         [SerializeField] private GameObject bloodSplashOverlay;
 
+        [Header("Result Text Font Sizes")]
+        [Tooltip("VICTORY!! / MISS!! の文字サイズ")]
+        [SerializeField] [Range(30, 100)] private int titleFontSize = 65;
+        [Tooltip("各ラウンド終了時のツッコミ文字サイズ")]
+        [SerializeField] [Range(18, 60)] private int commentFontSize = 34;
+        [Tooltip("最終リザルト一覧の2行目ツッコミ文字サイズ")]
+        [SerializeField] [Range(10, 24)] private int finalRecordCommentFontSize = 14;
+
         [Header("Clash Royale Style UI Elements")]
         [SerializeField] private Slider timerSlider;
         [SerializeField] private Image timerFillImage;
         [SerializeField] private RectTransform keyGuideP1;
         [SerializeField] private RectTransform keyGuideP2;
-        [SerializeField] private RectTransform crownIcon;
 
         [Header("Title UI Elements")]
         [SerializeField] private GameObject titlePanel;
@@ -30,6 +37,11 @@ namespace HaeTataki
         [SerializeField] private Text finalCommentText;
         [SerializeField] private Text restartGuideText;
 
+        [Header("Captured Photos (Round 3)")]
+        [SerializeField] private GameObject photoGroup;
+        [SerializeField] private RawImage photoFocusRawImage;
+        [SerializeField] private RawImage photoActionRawImage;
+
         private Color _initialTimerColor;
         private Tween _timerTween;
         private Sequence _warningSequence;
@@ -42,9 +54,6 @@ namespace HaeTataki
             }
         }
 
-        /// <summary>
-        /// タイトル画面の表示
-        /// </summary>
         public void ShowTitle()
         {
             KillAllUITweens();
@@ -52,10 +61,9 @@ namespace HaeTataki
             if (titlePanel != null) titlePanel.SetActive(true);
             if (finalResultPanel != null) finalResultPanel.SetActive(false);
             if (instructionText != null) instructionText.gameObject.SetActive(false);
-            if (crownIcon != null) crownIcon.gameObject.SetActive(false);
             if (bloodSplashOverlay != null) bloodSplashOverlay.SetActive(false);
+            if (photoGroup != null) photoGroup.SetActive(false);
 
-            // 「PRESS [SPACE] TO START」を滑らかに点滅
             if (pressStartText != null)
             {
                 DOTween.Kill(pressStartText);
@@ -64,18 +72,12 @@ namespace HaeTataki
             }
         }
 
-        /// <summary>
-        /// タイトル画面の非表示（ゲーム本編開始時）
-        /// </summary>
         public void HideTitle()
         {
             if (pressStartText != null) DOTween.Kill(pressStartText);
             if (titlePanel != null) titlePanel.SetActive(false);
         }
 
-        /// <summary>
-        /// ラウンド開始コール（例: "ROUND 1", "FINAL ROUND!!"）
-        /// </summary>
         public void ShowReady(string text, float roundDuration = 3.5f)
         {
             KillAllUITweens();
@@ -84,7 +86,6 @@ namespace HaeTataki
             {
                 instructionText.gameObject.SetActive(true);
                 instructionText.text = text;
-
                 instructionText.transform.localScale = Vector3.zero;
                 instructionText.transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack);
             }
@@ -137,7 +138,7 @@ namespace HaeTataki
             }
         }
 
-        public void ShowResult(bool isSuccess, float diffMs = 0f)
+        public void ShowResult(bool isSuccess, string comment)
         {
             KillAllUITweens();
 
@@ -149,17 +150,11 @@ namespace HaeTataki
 
                 if (isSuccess)
                 {
-                    instructionText.text = "<color=#FFDD00><size=55>VICTORY!!</size></color>\n<size=34>完全撃退！</size>";
-                    if (crownIcon != null)
-                    {
-                        crownIcon.gameObject.SetActive(true);
-                        crownIcon.anchoredPosition = new Vector2(0, 250);
-                        crownIcon.DOAnchorPosY(80, 0.45f).SetEase(Ease.OutBounce);
-                    }
+                    instructionText.text = $"<color=#FFDD00><size={titleFontSize}>VICTORY!!</size></color>\n<size={commentFontSize}><color=#FFFFFF>{comment}</color></size>";
                 }
                 else
                 {
-                    instructionText.text = $"<color=#FF4444><size=55>MISS!!</size></color>\n<size=34>ズレ: {diffMs:F0}ms</size>";
+                    instructionText.text = $"<color=#FF4444><size={titleFontSize}>MISS!!</size></color>\n<size={commentFontSize}><color=#FFAAAA>{comment}</color></size>";
                 }
             }
         }
@@ -181,7 +176,7 @@ namespace HaeTataki
                 DOTween.Kill(instructionText.transform);
                 instructionText.gameObject.SetActive(true);
                 instructionText.transform.localScale = Vector3.one;
-                instructionText.text = "<color=#FF2222><size=55>TIME OVER...</size></color>\n<size=34>血を吸われてしまった！</size>";
+                instructionText.text = $"<color=#FF2222><size={titleFontSize}>TIME OVER...</size></color>\n<size={commentFontSize}>2人とも反応できず…！</size>";
             }
             if (bloodSplashOverlay != null)
             {
@@ -189,17 +184,15 @@ namespace HaeTataki
             }
         }
 
-        public void ShowFinalResult(List<RoundRecord> records)
+        /// <summary>
+        /// 最終リザルト表示（2行表示で少し小さめにスッキリ配置）
+        /// </summary>
+        public void ShowFinalResult(List<RoundRecord> records, Texture2D focusTex = null, Texture2D actionTex = null)
         {
             KillAllUITweens();
 
             if (instructionText != null) instructionText.gameObject.SetActive(false);
-            if (crownIcon != null) crownIcon.gameObject.SetActive(false);
-
-            if (finalResultPanel != null)
-            {
-                finalResultPanel.SetActive(true);
-            }
+            if (finalResultPanel != null) finalResultPanel.SetActive(true);
 
             int totalScore = 0;
             int successCount = 0;
@@ -210,9 +203,9 @@ namespace HaeTataki
                 totalScore += r.score;
                 if (r.isSuccess) successCount++;
 
-                string mark = r.isSuccess ? "<color=#22FF66>⭕ WIN</color>" : "<color=#FF4444>❌ MISS</color>";
-                string diffStr = r.isSuccess ? $"({r.diffMs:F0}ms)" : "";
-                sb.AppendLine($"ROUND {r.roundNumber}:  {mark}  +{r.score}pt {diffStr}");
+                string mark = r.isSuccess ? "<color=#22FF66>WIN</color>" : "<color=#FF4444>MISS</color>";
+                // ★ 2行で表示し、2行目を小さめ(<size={finalRecordCommentFontSize}>)に設定 ★
+                sb.AppendLine($"ROUND {r.roundNumber}: {mark} +{r.score}pt\n<size={finalRecordCommentFontSize}><color=#E0E0E0>└ {r.timingComment}</color></size>");
             }
 
             if (finalRoundRecordsText != null) finalRoundRecordsText.text = sb.ToString();
@@ -243,7 +236,7 @@ namespace HaeTataki
 
             if (finalRankText != null)
             {
-                finalRankText.text = $"RANK: {rankStr}\n<size=28>{titleStr}</size>";
+                finalRankText.text = $"RANK: {rankStr}\n<size=26>{titleStr}</size>";
                 DOTween.Kill(finalRankText.transform);
                 finalRankText.transform.localScale = Vector3.one * 2.5f;
                 finalRankText.transform.DOScale(Vector3.one, 0.45f).SetEase(Ease.OutBounce);
@@ -257,6 +250,24 @@ namespace HaeTataki
                 DOTween.Kill(restartGuideText);
                 restartGuideText.DOFade(0.3f, 0.6f).SetLoops(-1, LoopType.Yoyo);
             }
+
+            if (photoGroup != null)
+            {
+                bool hasPhotos = (focusTex != null || actionTex != null);
+                photoGroup.SetActive(hasPhotos);
+
+                if (photoFocusRawImage != null && focusTex != null)
+                {
+                    photoFocusRawImage.texture = focusTex;
+                    photoFocusRawImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+                }
+
+                if (photoActionRawImage != null && actionTex != null)
+                {
+                    photoActionRawImage.texture = actionTex;
+                    photoActionRawImage.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+                }
+            }
         }
 
         public void ResetUI()
@@ -268,9 +279,9 @@ namespace HaeTataki
                 instructionText.gameObject.SetActive(false);
                 instructionText.transform.localScale = Vector3.one;
             }
-            if (crownIcon != null) crownIcon.gameObject.SetActive(false);
             if (bloodSplashOverlay != null) bloodSplashOverlay.SetActive(false);
             if (finalResultPanel != null) finalResultPanel.SetActive(false);
+            if (photoGroup != null) photoGroup.SetActive(false);
 
             if (timerSlider != null) timerSlider.value = 1f;
             if (timerFillImage != null) timerFillImage.color = _initialTimerColor;
@@ -282,7 +293,6 @@ namespace HaeTataki
         {
             KillTimerTweens();
             if (instructionText != null) DOTween.Kill(instructionText.transform);
-            if (crownIcon != null) DOTween.Kill(crownIcon);
             if (finalRankText != null) DOTween.Kill(finalRankText.transform);
             if (restartGuideText != null) DOTween.Kill(restartGuideText);
             if (pressStartText != null) DOTween.Kill(pressStartText);

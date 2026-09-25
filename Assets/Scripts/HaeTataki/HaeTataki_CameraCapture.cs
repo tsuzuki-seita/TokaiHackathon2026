@@ -15,6 +15,7 @@ namespace HaeTataki
         public Texture2D ActionFaceTexture { get; private set; }
 
         public bool IsCameraAvailable => _webCamTexture != null && _webCamTexture.isPlaying;
+        public bool HasSuccessPhoto { get; private set; } = false;
 
         private void Start()
         {
@@ -36,6 +37,18 @@ namespace HaeTataki
         }
 
         /// <summary>
+        /// ゲーム再スタート時の写真リセット
+        /// </summary>
+        public void ResetPhotos()
+        {
+            HasSuccessPhoto = false;
+            SafeDestroy(FocusFaceTexture);
+            SafeDestroy(ActionFaceTexture);
+            FocusFaceTexture = null;
+            ActionFaceTexture = null;
+        }
+
+        /// <summary>
         /// Shot 1: 蚊が止まりかけて集中している瞬間（真剣な顔）
         /// </summary>
         public void CaptureFocusFace()
@@ -47,14 +60,26 @@ namespace HaeTataki
         }
 
         /// <summary>
-        /// Shot 2: 手を叩いた瞬間（渾身の合掌／空振り顔）
+        /// Shot 2: 【成功時限定】完全撃退したラウンドの合掌顔を激写！
         /// </summary>
-        public void CaptureActionFace()
+        public void CaptureSuccessFace()
         {
             if (!IsCameraAvailable) return;
             SafeDestroy(ActionFaceTexture);
             ActionFaceTexture = TakeSnapshot();
-            Debug.Log("[CameraCapture] Shot 2 (結果顔) をキャプチャしました！");
+            HasSuccessPhoto = true;
+            Debug.Log("<color=#FFEE00>[CameraCapture] ★ 成功ラウンドの瞬間を激写しました！ ★</color>");
+        }
+
+        /// <summary>
+        /// 全ラウンド失敗時の予備（一度も成功しなかった場合のみ空振り顔を撮る）
+        /// </summary>
+        public void CaptureFallbackActionFace()
+        {
+            if (!IsCameraAvailable || HasSuccessPhoto) return;
+            SafeDestroy(ActionFaceTexture);
+            ActionFaceTexture = TakeSnapshot();
+            Debug.Log("[CameraCapture] フォールバック結果顔をキャプチャしました。");
         }
 
         private Texture2D TakeSnapshot()

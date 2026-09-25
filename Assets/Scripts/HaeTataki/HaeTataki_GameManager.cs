@@ -123,6 +123,11 @@ namespace HaeTataki
             _currentRoundIndex = 0;
             Records.Clear();
 
+            if (cameraCapture != null)
+            {
+                cameraCapture.ResetPhotos();
+            }
+
             RunThreeRoundsLoopAsync(_cts.Token).Forget();
         }
 
@@ -184,7 +189,6 @@ namespace HaeTataki
                 RoundDifficulty diff = _roundSettings[r];
                 float totalRoundTime = diff.flightDuration + diff.warningDuration + diff.catchableDuration;
 
-                // ★ ラウンド文字を特大サイズに拡大！ ★
                 string roundTitle = (r == 2) 
                     ? "<color=#FF2222><size=85>FINAL ROUND!!</size></color>" 
                     : $"<size=75>ROUND {r + 1}</size>";
@@ -229,6 +233,7 @@ namespace HaeTataki
                 ct,
                 onWarningCallback: () =>
                 {
+                    // Round 3のタメ予兆時に「集中顔」をキャプチャ
                     if (_currentRoundIndex == 2 && cameraCapture != null)
                     {
                         cameraCapture.CaptureFocusFace();
@@ -275,11 +280,6 @@ namespace HaeTataki
 
         private async UniTask ResolveWithSuspenseAsync(bool isSynced, float diffMs, CancellationToken ct)
         {
-            if (_currentRoundIndex == 2 && cameraCapture != null)
-            {
-                cameraCapture.CaptureActionFace();
-            }
-
             await UniTask.Delay(80, cancellationToken: ct);
 
             bool isCatchable = mosquito.IsCatchable;
@@ -356,6 +356,9 @@ namespace HaeTataki
             return score;
         }
 
+        /// <summary>
+        /// 撃退成功演出: 「VICTORY!!」が出てから0.2秒後に歓喜の顔を激写！
+        /// </summary>
         private async UniTask OnPerfectAsync(int earnedScore, string comment, CancellationToken ct)
         {
             handLeft.ReturnToInitial(0.25f);
@@ -364,9 +367,23 @@ namespace HaeTataki
             ui.ShowResult(true, comment);
 
             SafePlaySE(SoundManager.SEData.SETYPE.Winner);
-            await UniTask.Delay(1500, cancellationToken: ct);
+
+            // ★ 「VICTORY!!」の文字が出てから0.2秒（200ms）待つ ★
+            await UniTask.Delay(600, cancellationToken: ct);
+
+            // ★ プレイヤーが勝利を認識して喜んだ最高の瞬間を撮影！ ★
+            if (cameraCapture != null)
+            {
+                cameraCapture.CaptureSuccessFace();
+            }
+
+            // 残りのリザルト待機時間 (1500ms - 600ms = 900ms)
+            await UniTask.Delay(900, cancellationToken: ct);
         }
 
+        /// <summary>
+        /// 撃退失敗演出: Round 3で失敗した時のみフォールバック撮影
+        /// </summary>
         private async UniTask OnTimingMissAsync(string comment, CancellationToken ct)
         {
             mosquito.Escape();
@@ -380,7 +397,18 @@ namespace HaeTataki
             ui.ShowResult(false, comment);
 
             SafePlaySE(SoundManager.SEData.SETYPE.PlayerDamage);
-            await UniTask.Delay(1500, cancellationToken: ct);
+
+            // 一度も成功していない場合の予備撮影（MISS表示の0.2秒後）
+            if (_currentRoundIndex == 2 && cameraCapture != null && !cameraCapture.HasSuccessPhoto)
+            {
+                await UniTask.Delay(200, cancellationToken: ct);
+                cameraCapture.CaptureFallbackActionFace();
+                await UniTask.Delay(1300, cancellationToken: ct);
+            }
+            else
+            {
+                await UniTask.Delay(1500, cancellationToken: ct);
+            }
         }
 
         private async UniTask OnTimeOutAsync(CancellationToken ct)
@@ -389,7 +417,17 @@ namespace HaeTataki
             ui.ShowTimeOut();
 
             SafePlaySE(SoundManager.SEData.SETYPE.Loser);
-            await UniTask.Delay(1500, cancellationToken: ct);
+
+            if (_currentRoundIndex == 2 && cameraCapture != null && !cameraCapture.HasSuccessPhoto)
+            {
+                await UniTask.Delay(200, cancellationToken: ct);
+                cameraCapture.CaptureFallbackActionFace();
+                await UniTask.Delay(1300, cancellationToken: ct);
+            }
+            else
+            {
+                await UniTask.Delay(1500, cancellationToken: ct);
+            }
         }
 
         #region SoundManager Safe Callbacks

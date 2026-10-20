@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using DG.Tweening;
 
 public class mmm_MoguraController : MonoBehaviour
 {
@@ -13,6 +15,8 @@ public class mmm_MoguraController : MonoBehaviour
 
     // モグラを動かすスクリプト
     public mmm_MoguraMoveController moguraMoveController;
+    // UIのスクリプト
+    public mmm_MoguraUIManager moguraUIManager;
 
     public GameObject[] rings = new GameObject[26];  //配列を作成
     public List<int> memory1 = new List<int>();  // 記憶用リスト1個目
@@ -42,6 +46,8 @@ public class mmm_MoguraController : MonoBehaviour
 
     float timingRange = 0.5f;    // 「パッ！」が出てから何秒以内ならOKか
 
+    public GameObject SpaceToStartText; // space to startのテキスト
+
     
 
 
@@ -61,6 +67,13 @@ public class mmm_MoguraController : MonoBehaviour
         // 結果UIは開始時は非表示にしておく
         if (correctUI != null) correctUI.SetActive(false);
         if (incorrectUI != null) incorrectUI.SetActive(false);
+
+        // space to start の大きさを周期的に変える
+        if(SpaceToStartText != null)
+        {
+            moguraUIManager.SpaceToStart();
+        }
+
     }
 
     // Update is called once per frame
@@ -89,9 +102,12 @@ public class mmm_MoguraController : MonoBehaviour
             }
         }
 
+        // space to startをぷかぷかさせておく
+
 
         if (Input.GetKeyDown(KeyCode.Space) && !isPlaying)
         {
+            SpaceToStartText.SetActive(false);
             isPlaying = true;
             clearedRoundCount = 0;
             StartCoroutine(Round1());
@@ -138,6 +154,8 @@ public class mmm_MoguraController : MonoBehaviour
 
         OnRoundStart?.Invoke(round); // ★ラウンド開始タイミング（UIに「ラウンド1」等を表示する）
 
+        yield return moguraUIManager.CountDownAnimation().WaitForCompletion(); // カウントダウン
+
         CreateMemory(memory1);
         CreateMemory(memory2);
         CreateMemory(memory3);
@@ -161,6 +179,8 @@ public class mmm_MoguraController : MonoBehaviour
 
         OnRoundStart?.Invoke(round); // ★ラウンド開始タイミング（UIに「ラウンド2」等を表示する）
 
+        yield return moguraUIManager.CountDownAnimation().WaitForCompletion(); // カウントダウン
+
         CreateMemory(memory1);
         CreateMemory(memory2);
         CreateMemory(memory3);
@@ -183,6 +203,8 @@ public class mmm_MoguraController : MonoBehaviour
         interval = 0.6f;
 
         OnRoundStart?.Invoke(round); // ★ラウンド開始タイミング（UIに「ラウンド3」等を表示する）
+
+        yield return moguraUIManager.CountDownAnimation().WaitForCompletion(); // カウントダウン
 
         CreateMemory(memory1);
         CreateMemory(memory2);

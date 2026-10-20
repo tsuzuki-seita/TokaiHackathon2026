@@ -17,12 +17,15 @@ public class mmm_MoguraUIManager : MonoBehaviour
     [SerializeField] RectTransform incorrectPanel;
     [SerializeField] float judgedPanelDisplayTime = 0.8f;
 
-    [Header("最終結果")]
-    [SerializeField] CanvasGroup finalResultGroup;
-    [SerializeField] Text finalResultText;
+    [Header("最終結果")] // このパネルにスコアを表示させたい
+    [SerializeField] GameObject finalResultPanel;
+
+    [Header("カウントダウン")]  // 記憶フェーズ開始前のカウントダウン
+    [SerializeField] Text CountDownText;
 
     // controllerのイベントを購読する。これ以降、各Handleメソッドはcontroller側の
     // 処理進行に合わせて自動で呼び出される（このスクリプト側から明示的に呼ぶ必要はない）
+    
     void OnEnable()
     {
         controller.OnRoundStart += HandleRoundStart;
@@ -36,6 +39,30 @@ public class mmm_MoguraUIManager : MonoBehaviour
         controller.OnRoundJudged -= HandleRoundJudged;
         controller.OnGameFinished -= HandleGameFinished;
     }
+
+    public void SpaceToStart()
+    {   
+        controller.SpaceToStartText.transform.DOScale(1.1f, 0.6f).SetLoops(-1, LoopType.Yoyo);
+    }
+
+    public Sequence CountDownAnimation()
+    {
+        Sequence sequence = DOTween.Sequence();
+
+        sequence
+        .AppendCallback(() => CountDownText.text = "3")
+        .Append(CountDownText.transform.DOScale(1.0f, 0.8f))
+        .Append(CountDownText.transform.DOScale(0, 0.2f))
+        .AppendCallback(() => CountDownText.text = "2")
+        .Append(CountDownText.transform.DOScale(1.0f, 0.8f))
+        .Append(CountDownText.transform.DOScale(0, 0.2f))
+        .AppendCallback(() => CountDownText.text = "1")
+        .Append(CountDownText.transform.DOScale(1.0f, 0.8f))
+        .Append(CountDownText.transform.DOScale(0, 0.2f));
+
+        return sequence;
+    }
+    
 
     // ★ラウンド開始：controllerのRound1/2/3コルーチンの先頭でOnRoundStartがInvokeされた瞬間に自動で呼ばれる
     void HandleRoundStart(int roundNumber)
@@ -63,11 +90,9 @@ public class mmm_MoguraUIManager : MonoBehaviour
     // ★最終結果：controllerのRound3コルーチン末尾でOnGameFinishedがInvokeされた瞬間に自動で呼ばれる
     void HandleGameFinished(int clearedRoundCount, int totalRoundCount)
     {
-        finalResultText.text = $"{totalRoundCount}問中{clearedRoundCount}問正解";
+        // finalResultText.text = $"{totalRoundCount}問中{clearedRoundCount}問正解";
 
-        finalResultGroup.gameObject.SetActive(true);
-        finalResultGroup.alpha = 0f;
-        finalResultGroup.DOFade(1f, 0.6f);
+        finalResultPanel.SetActive(true);
     }
 
     // 指定した要素をポップ表示し、displayTime秒後に引っ込めて非表示にする共通処理

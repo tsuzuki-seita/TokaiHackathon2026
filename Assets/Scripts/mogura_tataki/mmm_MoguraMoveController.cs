@@ -15,20 +15,7 @@ public class mmm_MoguraMoveController : MonoBehaviour
 
     void Update()
 {
-    if (Input.GetKeyDown(KeyCode.A))
-    {
-        MoguraUp(0);
-    }
-
-    if (Input.GetKeyDown(KeyCode.S))
-    {
-        MoguraUp(1);
-    }
-
-    if (Input.GetKeyDown(KeyCode.D))
-    {
-        MoguraUp(2);
-    }
+   
 }
 
     // モグラを上げて、0.6秒後に戻す

@@ -48,6 +48,12 @@ public class mmm_MoguraController : MonoBehaviour
 
     public GameObject SpaceToStartText; // space to startのテキスト
 
+    public GameObject FinalResultPanel; // 最終結果表示用パネル
+    public Text ScoreText;  // スコア表示用のテキスト
+    public Text successRoundText;  // 成功ラウンド数表示用のテキスト
+
+    public GameObject TitleCanvas;  // タイトル画面のキャンバス
+
     
 
 
@@ -220,6 +226,7 @@ public class mmm_MoguraController : MonoBehaviour
         // 全ラウンド終了
         isPlaying = false;
 
+        successRoundText.text = "成功ラウンド数 : " + clearedRoundCount;
         OnGameFinished?.Invoke(clearedRoundCount, TotalRoundCount); // ★最終結果タイミング（UIに「3問中2問正解」等を表示する）
         Debug.Log($"ゲーム終了：{clearedRoundCount}/{TotalRoundCount}問正解");
     }
@@ -402,5 +409,19 @@ public class mmm_MoguraController : MonoBehaviour
         }
 
         return true;
+    }
+
+    public void OnClickReplayButton()
+    {
+        FinalResultPanel.SetActive(false);
+        isPlaying = false;
+        SpaceToStartText.SetActive(true);
+    }
+
+    public void OnClickBacktoTitleButton()
+    {
+        FinalResultPanel.SetActive(false);
+        isPlaying = false;
+        TitleCanvas.SetActive(true);
     }
 }

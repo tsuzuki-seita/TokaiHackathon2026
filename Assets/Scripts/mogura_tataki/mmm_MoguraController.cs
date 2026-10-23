@@ -43,13 +43,14 @@ public class mmm_MoguraController : MonoBehaviour
 
     private const int TotalRoundCount = 3; // ラウンド総数（最終結果表示に使用）
     private int clearedRoundCount = 0;     // 正解できたラウンド数（最終結果表示に使用）
+    private int Score = 0;  // スコア計算用変数
 
     float timingRange = 0.5f;    // 「パッ！」が出てから何秒以内ならOKか
 
     public GameObject SpaceToStartText; // space to startのテキスト
 
     public GameObject FinalResultPanel; // 最終結果表示用パネル
-    public Text ScoreText;  // スコア表示用のテキスト
+    public Text ScoreText;  // スコア表示用テキスト
     public Text successRoundText;  // 成功ラウンド数表示用のテキスト
 
     public GameObject TitleCanvas;  // タイトル画面のキャンバス
@@ -228,6 +229,7 @@ public class mmm_MoguraController : MonoBehaviour
 
         successRoundText.text = "成功ラウンド数 : " + clearedRoundCount;
         OnGameFinished?.Invoke(clearedRoundCount, TotalRoundCount); // ★最終結果タイミング（UIに「3問中2問正解」等を表示する）
+        ScoreText.text = "スコア : " + Score.ToString();
         Debug.Log($"ゲーム終了：{clearedRoundCount}/{TotalRoundCount}問正解");
     }
 
@@ -351,12 +353,28 @@ public class mmm_MoguraController : MonoBehaviour
             }
 
             Debug.Log($"{i + 1}回目 正解！次の入力へ");
+            if(round == 1)  // ラウンドに応じたスコア計算
+            {
+                Score = Score + 7;
+            }
+            else if(round == 2)
+            {
+                Score = Score + 9;
+            }
+            else
+            {
+                Score = Score + 15;
+            }
             // 正解：ループを継続し、次のグループの入力を受け付ける
         }
 
         // 3グループとも正解
         LastRoundCleared = true;
         clearedRoundCount++;
+        if(clearedRoundCount == 3)  // 全問正解なら100点になるように調整する
+        {
+            Score = Score + 4;
+        }
         Debug.Log("正解！");
 
         answerNumber = 0;

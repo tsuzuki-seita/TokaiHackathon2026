@@ -19,13 +19,13 @@ public class mmm_MoguraController : MonoBehaviour
     public mmm_MoguraUIManager moguraUIManager;
 
     public GameObject[] rings = new GameObject[26];  //配列を作成
-    public List<int> memory1 = new List<int>();  // 記憶用リスト1個目
-    public List<int> memory2 = new List<int>();  // 記憶用リスト2個目
-    public List<int> memory3 = new List<int>();  // 記憶用リスト3個目
+    public List<int> memory1;  // 記憶用リスト1個目
+    public List<int> memory2;  // 記憶用リスト2個目
+    public List<int> memory3;  // 記憶用リスト3個目
 
-    public List<int> answer1 = new List<int>();  // 回答用リスト1個目
-    public List<int> answer2 = new List<int>();  // 回答用リスト2個目
-    public List<int> answer3 = new List<int>();  // 回答用リスト3個目
+    public List<int> answer1;  // 回答用リスト1個目
+    public List<int> answer2;  // 回答用リスト2個目
+    public List<int> answer3;  // 回答用リスト3個目
 
     public List<int>[] memories = new List<int>[3]; // ↑の記憶用リストをまとめる配列
 
@@ -52,6 +52,9 @@ public class mmm_MoguraController : MonoBehaviour
     public GameObject FinalResultPanel; // 最終結果表示用パネル
     public Text ScoreText;  // スコア表示用テキスト
     public Text successRoundText;  // 成功ラウンド数表示用のテキスト
+
+    public Text InputAnswerShowText;
+    public Text CorrectAnswerShowText;
 
     public GameObject TitleCanvas;  // タイトル画面のキャンバス
 
@@ -227,27 +230,28 @@ public class mmm_MoguraController : MonoBehaviour
         // 全ラウンド終了
         isPlaying = false;
 
+        
         successRoundText.text = "成功ラウンド数 : " + clearedRoundCount;
         OnGameFinished?.Invoke(clearedRoundCount, TotalRoundCount); // ★最終結果タイミング（UIに「3問中2問正解」等を表示する）
         ScoreText.text = "スコア : " + Score.ToString();
         Debug.Log($"ゲーム終了：{clearedRoundCount}/{TotalRoundCount}問正解");
     }
 
-    void CreateMemory(List<int> memory)
+    void CreateMemory(List<int> memories)
     {
-        memory.Clear();
+        memories.Clear();
 
-        while (memory.Count < number_number)
+        while (memories.Count < number_number)
         {
             int new_number = UnityEngine.Random.Range(0, 26);
 
-            if (!memory.Contains(new_number))
+            if (!memories.Contains(new_number))
             {
-                memory.Add(new_number);
+                memories.Add(new_number);
             }
         }
 
-        Debug.Log("memory: " + string.Join(", ", memory));
+        Debug.Log("memory: " + string.Join(", ", memories));
     }
 
     // 指定したリングを光らせる
@@ -272,15 +276,15 @@ public class mmm_MoguraController : MonoBehaviour
         renderer.material.SetColor("_EmissionColor", Color.yellow * 2f);
     }
     
-   IEnumerator LightMemory(List<int> memory)
+   IEnumerator LightMemory(List<int> memories)
     {
         // number_number個ずつ処理する
-        for (int i = 0; i < memory.Count; i += number_number)
+        for (int i = 0; i < memories.Count; i += number_number)
         {
             // number_number個のリングとモグラを同時に出す
-            for (int j = 0; j < number_number && i + j < memory.Count; j++)
+            for (int j = 0; j < number_number && i + j < memories.Count; j++)
             {
-                int number = memory[i + j];
+                int number = memories[i + j];
 
                 // リングを光らせる
                 LightRing(number);
@@ -293,9 +297,9 @@ public class mmm_MoguraController : MonoBehaviour
             yield return new WaitForSeconds(interval);
 
             // 出したリングを元に戻す
-            for (int j = 0; j < number_number && i + j < memory.Count; j++)
+            for (int j = 0; j < number_number && i + j < memories.Count; j++)
             {
-                ResetRing(memory[i + j]);
+                ResetRing(memories[i + j]);
             }
         }
     }
@@ -392,6 +396,8 @@ public class mmm_MoguraController : MonoBehaviour
         }
         else
         {
+            ShowInputAnswer();
+            ShowCorrectAnswer();
             if (incorrectUI != null) incorrectUI.SetActive(true);
         }
 
@@ -404,7 +410,7 @@ public class mmm_MoguraController : MonoBehaviour
     bool CheckAnswer(List<int> memory, List<int> answer)
     {
         // 要素数が違ったら不正解
-        if (memory.Count != answer.Count)
+        if (memory3.Count != answer.Count)
         {
             return false;
         }
@@ -441,5 +447,82 @@ public class mmm_MoguraController : MonoBehaviour
         FinalResultPanel.SetActive(false);
         isPlaying = false;
         TitleCanvas.SetActive(true);
+    }
+
+    public string NumberToAlphabet(int AN)  // AN = AlphabetNumber // 戻り値で文字列を返すときはvoidではなくてstringになる
+    {
+        if (AN == 0) return "Z";
+        if (AN == 1) return "X";
+        if (AN == 2) return "C";
+        if (AN == 3) return "V";
+        if (AN == 4) return "B";
+        if (AN == 5) return "N";
+        if (AN == 6) return "M";
+        if (AN == 7) return "A";
+        if (AN == 8) return "S";
+        if (AN == 9) return "D";
+        if (AN == 10) return "F";
+        if (AN == 11) return "G";
+        if (AN == 12) return "H";
+        if (AN == 13) return "J";
+        if (AN == 14) return "K";
+        if (AN == 15) return "L";
+        if (AN == 16) return "Q";
+        if (AN == 17) return "W";
+        if (AN == 18) return "E";
+        if (AN == 19) return "R";
+        if (AN == 20) return "T";
+        if (AN == 21) return "Y";
+        if (AN == 22) return "U";
+        if (AN == 23) return "I";
+        if (AN == 24) return "O";
+        if (AN == 25) return "P";
+
+        return ""; // どの条件にも当てはまらなかった場合　何かを返す関数で何も返さない場合があるとエラーになる
+    }
+
+    public void ShowInputAnswer()
+    {
+        string inputletter1;
+        string inputletter2;
+        string inputletter3;
+        string inputletter4;
+        string inputletter5;
+        string inputletter6;
+
+        Debug.Log("answer1.Count = " + answer1.Count);
+        Debug.Log("answer2.Count = " + answer2.Count);
+        Debug.Log("answer3.Count = " + answer3.Count);
+        
+        inputletter1 = answer1.Count > 0 ? NumberToAlphabet(answer1[0]) : "";
+        inputletter2 = answer2.Count > 0 ? NumberToAlphabet(answer2[0]) : "";
+        inputletter3 = answer3.Count > 0 ? NumberToAlphabet(answer3[0]) : "";
+
+        inputletter4 = answer1.Count > 1 ? NumberToAlphabet(answer1[1]) : "";
+        inputletter5 = answer2.Count > 1 ? NumberToAlphabet(answer2[1]) : "";
+        inputletter6 = answer3.Count > 1 ? NumberToAlphabet(answer3[1]) : "";
+
+        InputAnswerShowText.text = "あなたの回答: " + inputletter1 + " " + inputletter4 + " " + inputletter2 + " " + inputletter5 + " " + inputletter3 + " " + inputletter6;
+
+    }
+    public void ShowCorrectAnswer()
+    {
+        string answerletter1;
+        string answerletter2;
+        string answerletter3;
+        string answerletter4;
+        string answerletter5;
+        string answerletter6;
+
+        answerletter1 = memory1.Count > 0 ? NumberToAlphabet(memory1[0]) : "";
+        answerletter2 = memory2.Count > 0 ? NumberToAlphabet(memory2[0]) : "";
+        answerletter3 = memory3.Count > 0 ? NumberToAlphabet(memory3[0]) : "";
+
+        answerletter4 = memory1.Count > 1 ? NumberToAlphabet(memory1[1]) : "";
+        answerletter5 = memory2.Count > 2 ? NumberToAlphabet(memory2[1]) : "";
+        answerletter6 = memory3.Count > 1 ? NumberToAlphabet(memory3[1]) : "";
+
+        CorrectAnswerShowText.text = "正解 : " + answerletter1 + " " + answerletter4 + " " + answerletter2 + " " + answerletter5 + " " + answerletter3 + " " + answerletter6;
+
     }
 }

@@ -59,6 +59,9 @@ public class mmm_MoguraController : MonoBehaviour
 
     public GameObject TitleCanvas;  // タイトル画面のキャンバス
 
+    public AudioSource audioSource; // AudioSource
+    public AudioClip hitSound; // 記憶、回答フェーズの効果音
+
     
 
 
@@ -100,16 +103,19 @@ public class mmm_MoguraController : MonoBehaviour
             {
                 answer1.Add(number);
                 Debug.Log("answer1に追加：" + number);
+                audioSource.PlayOneShot(hitSound); // 効果音を鳴らす
             }
             else if (answerNumber == 2 && answer2.Count < number_number)
             {
                 answer2.Add(number);
                 Debug.Log("answer2に追加：" + number);
+                audioSource.PlayOneShot(hitSound); // 効果音を鳴らす
             }
             else if (answerNumber == 3 && answer3.Count < number_number)
             {
                 answer3.Add(number);
                 Debug.Log("answer3に追加：" + number);
+                audioSource.PlayOneShot(hitSound); // 効果音を鳴らす
             }
         }
 
@@ -322,6 +328,9 @@ public class mmm_MoguraController : MonoBehaviour
 
                 // 同じ番号のモグラを出す
                 moguraMoveController.MoguraUp(number);
+
+                // 効果音を鳴らす
+                audioSource.PlayOneShot(hitSound);
             }
 
             // 0.6秒待つ

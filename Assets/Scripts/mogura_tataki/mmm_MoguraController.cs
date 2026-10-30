@@ -40,6 +40,7 @@ public class mmm_MoguraController : MonoBehaviour
 
     private Vector3[] originalScales = new Vector3[26]; // リングの元の大きさを保存する配列
     private bool isPlaying = false; // ゲーム進行中かどうか
+    private bool isRemembering = false;  // 記憶フェーズ中かどうか、記憶中は押したキーの色を変えないようにするため
 
     private const int TotalRoundCount = 3; // ラウンド総数（最終結果表示に使用）
     private int clearedRoundCount = 0;     // 正解できたラウンド数（最終結果表示に使用）
@@ -122,6 +123,32 @@ public class mmm_MoguraController : MonoBehaviour
             clearedRoundCount = 0;
             StartCoroutine(Round1());
         }
+
+        if (!isRemembering)
+        {
+            KeyCode[] keys =
+            {
+                KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B,
+                KeyCode.N, KeyCode.M, KeyCode.A, KeyCode.S, KeyCode.D,
+                KeyCode.F, KeyCode.G, KeyCode.H, KeyCode.J, KeyCode.K,
+                KeyCode.L, KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R,
+                KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O,
+                KeyCode.P
+            };
+
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (Input.GetKeyDown(keys[i]))
+                {
+                    LightRing(i);
+                }
+
+                if (Input.GetKeyUp(keys[i]))
+                {
+                    ResetRing(i);
+                }
+            }
+        }
     }
 
     int GetKeyNumber()
@@ -166,6 +193,8 @@ public class mmm_MoguraController : MonoBehaviour
 
         yield return moguraUIManager.CountDownAnimation().WaitForCompletion(); // カウントダウン
 
+        isRemembering = true;
+
         CreateMemory(memory1);
         CreateMemory(memory2);
         CreateMemory(memory3);
@@ -173,6 +202,8 @@ public class mmm_MoguraController : MonoBehaviour
         yield return StartCoroutine(LightMemory(memory1));
         yield return StartCoroutine(LightMemory(memory2));
         yield return StartCoroutine(LightMemory(memory3));
+        
+        isRemembering = false;
 
         yield return StartCoroutine(AnswerPhase());
         yield return StartCoroutine(ShowResult());

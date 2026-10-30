@@ -25,6 +25,12 @@ public class mmm_MoguraUIManager : MonoBehaviour
 
     // controllerのイベントを購読する。これ以降、各Handleメソッドはcontroller側の
     // 処理進行に合わせて自動で呼び出される（このスクリプト側から明示的に呼ぶ必要はない）
+
+    void Start()
+    {
+        CountDownText.gameObject.SetActive(false);  // 非表示にする
+        CountDownText.text = "3";
+    }
     
     void OnEnable()
     {
@@ -47,6 +53,8 @@ public class mmm_MoguraUIManager : MonoBehaviour
 
     public Sequence CountDownAnimation()
     {
+        CountDownText.gameObject.SetActive(true);
+
         Sequence sequence = DOTween.Sequence();
 
         sequence

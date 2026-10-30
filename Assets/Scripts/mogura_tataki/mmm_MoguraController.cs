@@ -268,9 +268,9 @@ public class mmm_MoguraController : MonoBehaviour
         isPlaying = false;
 
         
-        successRoundText.text = "成功ラウンド数 : " + clearedRoundCount;
+        successRoundText.text = "Success Round : " + clearedRoundCount;
         OnGameFinished?.Invoke(clearedRoundCount, TotalRoundCount); // ★最終結果タイミング（UIに「3問中2問正解」等を表示する）
-        ScoreText.text = "スコア : " + Score.ToString();
+        ScoreText.text = "Score : " + Score.ToString();
         Debug.Log($"ゲーム終了：{clearedRoundCount}/{TotalRoundCount}問正解");
     }
 
